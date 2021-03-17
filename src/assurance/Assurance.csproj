@@ -8,8 +8,8 @@
     <Authors>Chris Peterson</Authors>
     <Description>A library that helps boost confidence when making code changes</Description>
     <Copyright>2021</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/chris-peterson/assurance</PackageProjectUrl>
-    <PackageLicenseUrl>https://github.com/chris-peterson/assurance/blob/main/LICENSE</PackageLicenseUrl>
   </PropertyGroup>
 
   <ItemGroup>
