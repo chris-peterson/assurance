@@ -49,6 +49,7 @@ namespace Assurance.UnitTests
             Context.Existing = Task.FromResult(TestString);
             Context.Replacement = Task.FromResult(TestString + "something different");
         }
+
         async Task Implementations_are_run()
         {
             Context.Result = await Runner.Run(
@@ -64,7 +65,6 @@ namespace Assurance.UnitTests
             Context.Result.Replacement.Should().BeSameAs(TestString);
         }
 
-
         void Existing_result_is_used()
         {
             var result = Context.Result.UseExisting();
@@ -72,6 +72,7 @@ namespace Assurance.UnitTests
             result.Should().NotBe(Context.Replacement.Result);
             Context.Result.SameResult.Should().BeFalse();
         }
+
         void Replacement_result_is_used()
         {
             var result = Context.Result.UseReplacement();
