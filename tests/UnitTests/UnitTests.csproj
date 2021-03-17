@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\assurance\assurance.csproj" />
+    <ProjectReference Include="..\..\src\assurance\Assurance.csproj" />
   </ItemGroup>
 
 </Project>
