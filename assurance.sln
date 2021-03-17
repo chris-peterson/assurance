@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "assurance", "src/assurance/assurance.csproj", "{D912222E-6441-4925-843F-52156D027EF5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "assurance", "src/assurance/Assurance.csproj", "{D912222E-6441-4925-843F-52156D027EF5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "assurance-tests", "tests/UnitTests/assurance-tests.csproj", "{8D60AA24-54D9-4AC5-8E56-F6D28A167496}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "assurance-tests", "tests/UnitTests/UnitTests.csproj", "{8D60AA24-54D9-4AC5-8E56-F6D28A167496}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

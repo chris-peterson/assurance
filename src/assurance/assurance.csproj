@@ -2,6 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Title>Assurance</Title>
+    <Authors>Chris Peterson</Authors>
+    <Description>A library that helps boost confidence when making code changes</Description>
+    <Copyright>2021</Copyright>
+    <PackageProjectUrl>https://github.com/chris-peterson/assurance</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>
