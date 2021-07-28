@@ -6,6 +6,10 @@
 
 ## Getting Started
 
+`dotnet add package Assurance`
+
+OR
+
 `PM> Install-Package Assurance`
 
 NOTE: This package works with [Spiffy](https://github.com/chris-peterson/spiffy#overview) logging.
