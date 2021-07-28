@@ -23,8 +23,8 @@ namespace Assurance
                 replacement = () => default;
             }
 
-            var existingTask = new TaskRunner<T>(existing, true);
-            var replacementTask = new TaskRunner<T>(replacement, false);
+            var existingTask = new TaskRunner<T>(context, "Existing", existing, true);
+            var replacementTask = new TaskRunner<T>(context, "Replacement", replacement, false);
 
             await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
 
@@ -48,28 +48,42 @@ namespace Assurance
 
         class TaskRunner<T>
         {
-            public TaskRunner(Func<T> work, bool shouldRethrowExceptions)
+            readonly EventContext _context;
+            readonly string _label;
+
+            public TaskRunner(EventContext context, string label, Func<T> work, bool shouldRethrowExceptions)
             {
-                Work = Task.Factory.StartNew(work);
+                _context = context;
+                _label = label;
+                Work = new Task<T>(work);
                 ShouldRethrowExceptions = shouldRethrowExceptions;
             }
 
             public async Task<T> RunAsync()
             {
-                try
+                using (_context.Timers.TimeOnce(_label))
                 {
-                    Result = await Work;
-                }
-                catch (Exception ex)
-                {
-                    Exception = ex;
-                    if (ShouldRethrowExceptions)
+                    Work.Start();
+                    try
                     {
-                        throw;
+                        Result = await Work;
                     }
-                }
+                    catch (Exception ex)
+                    {
+                        Exception = ex;
+                        _context.IncludeException(Exception, _label);
+                        if (ShouldRethrowExceptions)
+                        {
+                            throw;
+                        }
+                        else
+                        {
+                            _context.SetToInfo();
+                        }
+                    }
 
-                return Work.IsCompletedSuccessfully ? Result : default;
+                    return Result;
+                }
             }
 
             public T Result { get; private set; }
