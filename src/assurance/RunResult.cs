@@ -14,8 +14,8 @@ namespace Assurance
         {
             get
             {
-                if (Existing == null && Replacement == null)
-                    return true;
+                if (Existing == null)
+                    return Replacement == null;
                 return Existing.Equals(Replacement);
             }
         }

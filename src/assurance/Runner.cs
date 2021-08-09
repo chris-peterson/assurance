@@ -28,7 +28,8 @@ namespace Assurance
 
             await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
 
-            if ((existingTask.Result == null && replacementTask.Result == null) || (existingTask.Result.Equals(replacementTask.Result)))
+            var result = new RunResult<T>(existingTask.Result, replacementTask.Result);
+            if (result.SameResult)
             {
                 context["Result"] = "same";
             }
@@ -39,7 +40,7 @@ namespace Assurance
                 context["Replacement"] = replacementTask.Result;
             }
 
-            return new RunResult<T>(existingTask.Result, replacementTask.Result);
+            return result;
         }
 
         class TaskRunner<T>
