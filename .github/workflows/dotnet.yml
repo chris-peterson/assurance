@@ -28,3 +28,6 @@ jobs:
       with:
         PROJECT_FILE_PATH: src/assurance/Assurance.csproj
         NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+    environment:
+      name: NuGet.org
+      url: https://www.nuget.org/packages/Assurance
