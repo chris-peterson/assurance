@@ -28,11 +28,7 @@ namespace Assurance
 
             await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
 
-            if (existingTask.Result == null)
-            {
-                context["Result"] = "null from existing";
-            }
-            else if (existingTask.Result.Equals(replacementTask.Result))
+            if (existingTask.Result.Equals(replacementTask.Result))
             {
                 context["Result"] = "same";
             }
