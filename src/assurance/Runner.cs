@@ -28,7 +28,7 @@ namespace Assurance
 
             await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
 
-            var result = new RunResult<T>(existingTask.Result, replacementTask.Result);
+            var result = new RunResult<T>(existingTask.Result, replacementTask.Result, context);
             if (result.SameResult)
             {
                 context["Result"] = "same";

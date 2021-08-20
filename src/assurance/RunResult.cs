@@ -1,11 +1,15 @@
+using Spiffy.Monitoring;
+
 namespace Assurance
 {
     public class RunResult<T>
     {
-        public RunResult(T existing, T replacement)
+        readonly EventContext _eventContext;
+        public RunResult(T existing, T replacement, EventContext eventContext)
         {
             Existing = existing;
             Replacement = replacement;
+            _eventContext = eventContext;
         }
 
         public T Existing { get; }
@@ -20,7 +24,15 @@ namespace Assurance
             }
         }
 
-        public T UseExisting() => Existing;
-        public T UseReplacement() => Replacement;
+        public T UseExisting()
+        {
+            _eventContext["Use"] = "existing";
+            return Existing;
+        }
+        public T UseReplacement()
+        {
+            _eventContext["Use"] = "replacement";
+            return Replacement;
+        }
     }
 }
