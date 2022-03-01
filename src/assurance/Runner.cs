@@ -10,7 +10,7 @@ namespace Assurance
             string taskName,
             Func<T> existing, Func<T> replacement)
         {
-            using var context = new EventContext("Assurance", taskName);
+            var context = new EventContext("Assurance", taskName);
 
             if (existing == null)
             {

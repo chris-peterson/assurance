@@ -26,13 +26,19 @@ namespace Assurance
 
         public T UseExisting()
         {
-            _eventContext["Use"] = "existing";
+            LogUse("existing");
             return Existing;
         }
         public T UseReplacement()
         {
-            _eventContext["Use"] = "replacement";
+            LogUse("replacement");
             return Replacement;
+        }
+
+        void LogUse(string use)
+        {
+            _eventContext["Use"] = use;
+            _eventContext.Dispose();
         }
     }
 }
