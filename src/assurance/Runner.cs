@@ -43,6 +43,43 @@ namespace Assurance
             return result;
         }
 
+        public static async Task<RunResult<T>> RunInParallel<T>(
+            string taskName,
+            Func<Task<T>> existing, Func<Task<T>> replacement)
+        {
+            var context = new EventContext("Assurance", taskName);
+
+            if (existing == null)
+            {
+                context.AppendToValue("Warnings", "Existing implementation is undefined", ",");
+                existing = () => Task.FromResult(default(T));
+            }
+            if (replacement == null)
+            {
+                context.AppendToValue("Warnings", "Replacement implementation is undefined", ",");
+                replacement = () => Task.FromResult(default(T));
+            }
+
+            var existingTask = new AsyncTaskRunner<T>(context, "Existing", existing, true);
+            var replacementTask = new AsyncTaskRunner<T>(context, "Replacement", replacement, false);
+
+            await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
+
+            var result = new RunResult<T>(existingTask.Result, replacementTask.Result, context);
+            if (result.SameResult)
+            {
+                context["Result"] = "same";
+            }
+            else
+            {
+                context["Result"] = "different";
+                context["Existing"] = existingTask.Result;
+                context["Replacement"] = replacementTask.Result;
+            }
+
+            return result;
+        }
+
         class TaskRunner<T>
         {
             readonly EventContext _context;
@@ -87,6 +124,52 @@ namespace Assurance
             public Exception Exception { get; private set; }
 
             Task<T> Work { get; }
+            bool ShouldRethrowExceptions { get; }
+        }
+
+        class AsyncTaskRunner<T>
+        {
+            readonly EventContext _context;
+            readonly string _label;
+
+            public AsyncTaskRunner(EventContext context, string label, Func<Task<T>> work, bool shouldRethrowExceptions)
+            {
+                _context = context;
+                _label = label;
+                Work = work;
+                ShouldRethrowExceptions = shouldRethrowExceptions;
+            }
+
+            public async Task<T> RunAsync()
+            {
+                using (_context.Timers.TimeOnce(_label))
+                {
+                    try
+                    {
+                        Result = await Work.Invoke();
+                    }
+                    catch (Exception ex)
+                    {
+                        Exception = ex;
+                        _context.IncludeException(Exception, _label);
+                        if (ShouldRethrowExceptions)
+                        {
+                            throw;
+                        }
+                        else
+                        {
+                            _context.SetToInfo();
+                        }
+                    }
+
+                    return Result;
+                }
+            }
+
+            public T Result { get; private set; }
+            public Exception Exception { get; private set; }
+
+            Func<Task<T>> Work { get; }
             bool ShouldRethrowExceptions { get; }
         }
     }
