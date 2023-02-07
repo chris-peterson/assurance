@@ -21,7 +21,7 @@ jobs:
     - name: Test
       run: dotnet test --no-build --configuration Release
     - name: Publish the package to nuget.org
-      run: dotnet nuget push --configuration Release ./src/assurance/bin/Release/*.nupkg -k $NUGET_AUTH_TOKEN -s https://api.nuget.org/v3/index.json
+      run: dotnet nuget push ./src/assurance/bin/Release/*.nupkg -k $NUGET_AUTH_TOKEN -s https://api.nuget.org/v3/index.json
       env:
         NUGET_AUTH_TOKEN: ${{secrets.NUGET_API_KEY}}
     environment:
