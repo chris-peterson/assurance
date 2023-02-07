@@ -35,7 +35,11 @@ namespace Assurance.UnitTests
 
         void existing_throws()
         {
-            Context.Existing = () => throw new Exception("from existing");
+            Context.Existing = async () =>
+            {
+                await Task.Delay(100);
+                throw new Exception("from existing");
+            };
         }
 
         void existing_succeeds()
@@ -45,7 +49,11 @@ namespace Assurance.UnitTests
 
         void replacement_throws()
         {
-            Context.Replacement = () => throw new Exception("from replacement");
+            Context.Replacement = async () =>
+            {
+                await Task.Delay(100);
+                throw new Exception("from replacement");
+            };
         }
 
         async Task implementations_are_run()
