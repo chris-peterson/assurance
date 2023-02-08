@@ -5,6 +5,7 @@ namespace Assurance
     public class RunResult<T>
     {
         readonly EventContext _eventContext;
+        bool _loggedProperly = false;
         public RunResult(T existing, T replacement, EventContext eventContext)
         {
             Existing = existing;
@@ -39,6 +40,16 @@ namespace Assurance
         {
             _eventContext["Use"] = use;
             _eventContext.Dispose();
+            _loggedProperly = true;
+        }
+
+        ~RunResult()
+        {
+            if (!_loggedProperly)
+            {
+                _eventContext.SetToWarning("Call UseExisting or UseReplacement in order to avoid this warning");
+                LogUse("Unknown");
+            }
         }
     }
 }
