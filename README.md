@@ -4,6 +4,14 @@
 
 ![image](https://user-images.githubusercontent.com/1980791/111552805-504fdd00-8740-11eb-8086-444e52abef65.png)
 
+## Status
+
+[![build](https://github.com/chris-peterson/assurance/actions/workflows/ci.yml/badge.svg)](https://github.com/chris-peterson/assurance/actions/workflows/ci.yml)
+
+Package | Latest Release |
+:-------- | :------------ |
+`Assurance` | [![NuGet version](https://img.shields.io/nuget/dt/Assurance.svg)](https://www.nuget.org/packages/assurance)
+
 ## Getting Started
 
 `dotnet add package Assurance`
@@ -12,7 +20,7 @@ OR
 
 `PM> Install-Package Assurance`
 
-NOTE: This package works with [Spiffy](https://github.com/chris-peterson/spiffy#overview) logging.
+NOTE: This package uses [Spiffy](https://github.com/chris-peterson/spiffy#overview) logging.
 
 ## Example
 
