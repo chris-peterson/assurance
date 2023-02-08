@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>1.1.2</Version>
+    <Version>1.1.3</Version>
     <TargetFramework>netstandard2.1</TargetFramework>
     <Title>Assurance</Title>
     <Authors>Chris Peterson</Authors>
@@ -13,7 +13,7 @@
     <PackageTags>validator</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReleaseNotes>
-https://github.com/chris-peterson/assurance/pull/2
+Include release notes in package
     </PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

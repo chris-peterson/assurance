@@ -28,7 +28,7 @@ Imagine discovering some legacy code:
 
 ```c#
     int i;
-    for (i = 0; i < 1000000; i++) { }
+    for (i = 0; i < 1000000; i++) ;
     return i;
 ```
 
@@ -45,7 +45,7 @@ The `Assurance` library allows you to evaluate 2 implementations side-by-side
 and switch to better implementations with confidence.
 
 ```c#
-    var result = await Runner.RunInParallel(
+    var result = (await Runner.RunInParallel(
         "CountToOneMillion",
         () =>
         {
@@ -65,8 +65,7 @@ When the above code is run, log entries are created, e.g.
 
 ```plaintext
 [2021-07-28 21:33:32.144Z] Level=Info Component=Assurance Operation=CountToOneMillion
-TimeElapsed=24.6 Result=same
-TimeElapsed_Existing=24.1 TimeElapsed_Replacement=0.2
+TimeElapsed=24.6 Result=same TimeElapsed_Existing=24.1 TimeElapsed_Replacement=0.2
 Use=existing
 ```
 
@@ -74,10 +73,9 @@ Use=existing
 
 `TimeElapsed_Replacement < TimeElapsed_Existing` gives us confidence that we haven't regressed performance.
 
-The returned object makes it easy to `.UseExisting()` or `.UseReplacement()` to pivot between implementations.
+The returned object makes it easy to toggle implementations (i.e. choose which is the authority).
 
-Generally you'd defer to the existing implementation for some evaluation period, then switch over to replacement;
-eventually the scaffolding can be removed leaving just the new, improved implementation.
+Generally you'd defer to the existing implementation for some evaluation period, then [cutover to the replacement](#cutting-over).
 
 ### Different Results
 
@@ -86,8 +84,8 @@ In these cases, `Result=different` can be found in the logs along with `Existing
 
 ```plaintext
 [2021-07-28 21:33:32.242Z] Level=Info Component=Assurance
-Operation=ComputeResult TimeElapsed=500 Result=different
-Existing=1000000 Replacement=1000001 TimeElapsed_Existing=500 TimeElapsed_Replacement=100
+Operation=ComputeResult TimeElapsed=500 Result=different Existing=1000001 Replacement=1000000
+TimeElapsed_Existing=500 TimeElapsed_Replacement=100
 ```
 
 Sometimes, you might be willing to accept different behavior if, for example, the new code is substantially faster.
@@ -105,7 +103,7 @@ An exception that occurs in the _**replacement**_ implementation will be logged 
 Once you are satisified with the replacement implementation, cutting over is a simple code change, from `UseExisting` to `UseReplacement`, e.g.
 
 ```c#
-    var result = await Runner.RunInParallel(
+    var result = (await Runner.RunInParallel(
         "CountToOneMillion",
         () =>
         {
@@ -126,8 +124,6 @@ After an evaluation period, the old implementation (and the `Assurance` scaffold
 ```c#
 
     var result = CountToOneMillion();
-
-// ...
 
     int CountToOneMillion()
     {
