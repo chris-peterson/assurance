@@ -1,4 +1,4 @@
-name: dotnet
+name: ci
 
 on:
   push:
@@ -24,6 +24,7 @@ jobs:
       run: dotnet nuget push ./src/assurance/bin/Release/*.nupkg -k $NUGET_AUTH_TOKEN -s https://api.nuget.org/v3/index.json
       env:
         NUGET_AUTH_TOKEN: ${{secrets.NUGET_API_KEY}}
+      if: github.event_name != 'pull_request'
     environment:
       name: NuGet.org
       url: https://www.nuget.org/packages/Assurance

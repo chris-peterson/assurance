@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <TargetFramework>netstandard2.1</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Title>Assurance</Title>
@@ -11,7 +11,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/chris-peterson/assurance</PackageProjectUrl>
     <PackageReleaseNotes>
-https://github.com/chris-peterson/assurance/pull/1
+https://github.com/chris-peterson/assurance/pull/2
     </PackageReleaseNotes>
   </PropertyGroup>
 

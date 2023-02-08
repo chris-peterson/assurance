@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -36,6 +37,15 @@ namespace Assurance.UnitTests
         {
             WhenAsync(implementations_are_run);
             Then(the_result_is_null);
+        }
+
+        [Scenario]
+        public void AmbiguousUse()
+        {
+            Given(multiple_implementations)
+                .But(source_to_use_is_not_specified);
+            WhenAsync(implementations_are_run);
+            Then(a_warning_is_logged);
         }
 
         const string TestString = "foo";
@@ -96,6 +106,29 @@ namespace Assurance.UnitTests
             Context.Result.Existing.Should().BeNull();
             Context.Result.Replacement.Should().BeNull();
             Context.Result.SameResult.Should().BeTrue();
+        }
+
+        void multiple_implementations()
+        {
+            // for scenario readability
+        }
+
+        void source_to_use_is_not_specified()
+        {
+            // didn't call Context.Result UseExisting/UseReplacement
+        }
+
+        void a_warning_is_logged()
+        {
+            // coerce finalization
+            Context.Result = null;
+            GC.Collect();
+
+            Context.WaitForLogEvent.WaitOne();
+            var props = Context.LoggedEvent.Properties;
+            props["Use"].Should().Be("Unknown");
+            props["WarningReason"].Should().Contain("UseExisting");
+            props["WarningReason"].Should().Contain("UseReplacement");
         }
     }
 }
