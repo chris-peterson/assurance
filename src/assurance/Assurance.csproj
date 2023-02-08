@@ -1,18 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Title>Assurance</Title>
     <Authors>Chris Peterson</Authors>
     <Description>A library to boost confidence when making code changes</Description>
     <Copyright>2021-2023</Copyright>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <AssemblyName>Assurance</AssemblyName>
+    <PackageId>Assurance</PackageId>
     <PackageProjectUrl>https://github.com/chris-peterson/assurance</PackageProjectUrl>
+    <PackageTags>validator</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReleaseNotes>
 https://github.com/chris-peterson/assurance/pull/2
     </PackageReleaseNotes>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,9 +24,7 @@ https://github.com/chris-peterson/assurance/pull/2
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\README.md">
-      <Link>README.md</Link>
-    </Content>
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>
