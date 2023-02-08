@@ -48,13 +48,18 @@ and switch to better implementations with confidence.
         () =>
         {
             return 1000000;
-        });
+        })
+        .UseExisting();
+        // UseReplacement();
 ```
 
 When the above code is run, log entries are created, e.g.
 
 ```plaintext
-[2021-07-28 21:33:32.144Z] Level=Info Component=Assurance Operation=CountToOneMillion TimeElapsed=24.6 Result=same TimeElapsed_Existing=24.1 TimeElapsed_Replacement=0.2
+[2021-07-28 21:33:32.144Z] Level=Info Component=Assurance Operation=CountToOneMillion
+TimeElapsed=24.6 Result=same
+TimeElapsed_Existing=24.1 TimeElapsed_Replacement=0.2
+Use=existing
 ```
 
 `Result=same` gives us confidence that we haven't regressed behavior.
@@ -72,15 +77,17 @@ Imagine we weren't so lucky with our drop-in replacement and observed that 1% of
 In these cases, `Result=different` can be found in the logs along with `Existing` and `Replacement` fields, e.g.
 
 ```plaintext
-[2021-07-28 21:33:32.242Z] Level=Info Component=Assurance Operation=ComputeResult TimeElapsed=500 Result=different Existing=1000000 Replacement=1000001 TimeElapsed_Existing=500 TimeElapsed_Replacement=100
+[2021-07-28 21:33:32.242Z] Level=Info Component=Assurance
+Operation=ComputeResult TimeElapsed=500 Result=different
+Existing=1000000 Replacement=1000001 TimeElapsed_Existing=500 TimeElapsed_Replacement=100
 ```
 
 Sometimes, you might be willing to accept different behavior if, for example, the new code is substantially faster.
 
-Other times, you might find out that the existing system is _wrong_ and you prefer the new implementation.
+Other times, you might find out that the existing system is _wrong_ and you prefer the results from the new implementation.
 
 ### Exception Behavior
 
 An exception that occurs in the _**existing**_ implementation will be logged and re-thrown.
 
-An exception that occurs in the _**replacement**_ implementation will be logged only.
+An exception that occurs in the _**replacement**_ implementation will be logged only (i.e. **not** re-thrown).
