@@ -45,7 +45,7 @@ The `Assurance` library allows you to evaluate 2 implementations side-by-side
 and switch to better implementations with confidence.
 
 ```c#
-    await Runner.RunInParallel(
+    var result = await Runner.RunInParallel(
         "CountToOneMillion",
         () =>
         {
@@ -56,9 +56,9 @@ and switch to better implementations with confidence.
         () =>
         {
             return 1000000;
-        })
+        }))
         .UseExisting();
-        // UseReplacement();
+        // .UseReplacement();
 ```
 
 When the above code is run, log entries are created, e.g.
@@ -99,3 +99,38 @@ Other times, you might find out that the existing system is _wrong_ and you pref
 An exception that occurs in the _**existing**_ implementation will be logged and re-thrown.
 
 An exception that occurs in the _**replacement**_ implementation will be logged only (i.e. **not** re-thrown).
+
+### Cutting Over
+
+Once you are satisified with the replacement implementation, cutting over is a simple code change, from `UseExisting` to `UseReplacement`, e.g.
+
+```c#
+    var result = await Runner.RunInParallel(
+        "CountToOneMillion",
+        () =>
+        {
+            int i;
+            for (i = 0; i < 1000000; i++) ;
+            return i;
+        },
+        () =>
+        {
+            return 1000000;
+        }))
+        // .UseExisting();
+        .UseReplacement();
+```
+
+After an evaluation period, the old implementation (and the `Assurance` scaffolding) can be removed, e.g.
+
+```c#
+
+    var result = CountToOneMillion();
+
+// ...
+
+    int CountToOneMillion()
+    {
+        return 1000000;
+    }
+```
