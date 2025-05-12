@@ -6,9 +6,28 @@ namespace Assurance
 {
     public static class Runner
     {
+        private static RunResult<T> DefaultRunResultCompare<T>(RunResult<T> runResult, EventContext context)
+        {
+            if (runResult.SameResult)
+            {
+                context["Result"] = "same";
+            }
+            else
+            {
+                context["Result"] = "different";
+                context["Existing"] = runResult.Existing;
+                context["Replacement"] = runResult.Replacement;
+            }
+
+            return runResult;
+        }
+    
+        public delegate RunResult<T> RunResultCompare<T>(RunResult<T> runResult, EventContext context);
+
         public static async Task<RunResult<T>> RunInParallel<T>(
             string taskName,
-            Func<T> existing, Func<T> replacement)
+            Func<T> existing, Func<T> replacement,
+            RunResultCompare<T> runResultCompare = null)
         {
             var context = new EventContext("Assurance", taskName);
 
@@ -29,23 +48,15 @@ namespace Assurance
             await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
 
             var result = new RunResult<T>(existingTask.Result, replacementTask.Result, context);
-            if (result.SameResult)
-            {
-                context["Result"] = "same";
-            }
-            else
-            {
-                context["Result"] = "different";
-                context["Existing"] = existingTask.Result;
-                context["Replacement"] = replacementTask.Result;
-            }
-
-            return result;
+            return (runResultCompare != null) 
+                ? runResultCompare(result, context) 
+                : DefaultRunResultCompare(result, context);
         }
 
         public static async Task<RunResult<T>> RunInParallel<T>(
             string taskName,
-            Func<Task<T>> existing, Func<Task<T>> replacement)
+            Func<Task<T>> existing, Func<Task<T>> replacement,
+            RunResultCompare<T> runResultCompare = null)
         {
             var context = new EventContext("Assurance", taskName);
 
@@ -66,18 +77,9 @@ namespace Assurance
             await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
 
             var result = new RunResult<T>(existingTask.Result, replacementTask.Result, context);
-            if (result.SameResult)
-            {
-                context["Result"] = "same";
-            }
-            else
-            {
-                context["Result"] = "different";
-                context["Existing"] = existingTask.Result;
-                context["Replacement"] = replacementTask.Result;
-            }
-
-            return result;
+            return (runResultCompare != null) 
+                ? runResultCompare(result, context) 
+                : DefaultRunResultCompare(result, context);
         }
 
         class TaskRunner<T>
