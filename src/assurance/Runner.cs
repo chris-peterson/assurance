@@ -8,9 +8,10 @@ namespace Assurance
     {
         public static async Task<RunResult<T>> RunInParallel<T>(
             string taskName,
-            Func<T> existing, Func<T> replacement)
+            Func<T> existing, Func<T> replacement,
+            EventContext context = null)
         {
-            var context = new EventContext("Assurance", taskName);
+            context = context ?? new EventContext("Assurance", taskName);
 
             if (existing == null)
             {
@@ -45,9 +46,10 @@ namespace Assurance
 
         public static async Task<RunResult<T>> RunInParallel<T>(
             string taskName,
-            Func<Task<T>> existing, Func<Task<T>> replacement)
+            Func<Task<T>> existing, Func<Task<T>> replacement,
+            EventContext context = null)
         {
-            var context = new EventContext("Assurance", taskName);
+            context = context ?? new EventContext("Assurance", taskName);
 
             if (existing == null)
             {
