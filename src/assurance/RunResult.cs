@@ -24,6 +24,13 @@ namespace Assurance
                 return Existing.Equals(Replacement);
             }
         }
+        public EventContext EventContext
+        {
+            get
+            {
+                return _eventContext;
+            }
+        }
 
         public T UseExisting()
         {
