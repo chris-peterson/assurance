@@ -1,55 +1,55 @@
 using Spiffy.Monitoring;
 
-namespace Assurance
+namespace Assurance;
+
+public class RunResult<T>
 {
-    public class RunResult<T>
+    readonly LoggingContext _loggingContext;
+    internal RunResult(T existing, T replacement, LoggingContext loggingContext)
     {
-        readonly EventContext _eventContext;
-        bool _loggedProperly = false;
-        public RunResult(T existing, T replacement, EventContext eventContext)
-        {
-            Existing = existing;
-            Replacement = replacement;
-            _eventContext = eventContext;
-        }
+        Existing = existing;
+        Replacement = replacement;
+        _loggingContext = loggingContext;
+    }
 
-        public T Existing { get; }
-        public T Replacement { get; }
-        public bool SameResult
+    public T Existing { get; }
+    public T Replacement { get; }
+    public bool SameResult
+    {
+        get
         {
-            get
-            {
-                if (Existing == null)
-                    return Replacement == null;
-                return Existing.Equals(Replacement);
-            }
+            if (Existing == null)
+                return Replacement == null;
+            return Existing.Equals(Replacement);
         }
+    }
 
-        public T UseExisting()
-        {
-            LogUse("existing");
-            return Existing;
-        }
-        public T UseReplacement()
-        {
-            LogUse("replacement");
-            return Replacement;
-        }
+    public T UseExisting()
+    {
+        LogUse("existing");
+        return Existing;
+    }
 
-        void LogUse(string use)
-        {
-            _eventContext["Use"] = use;
-            _eventContext.Dispose();
-            _loggedProperly = true;
-        }
+    public T UseReplacement()
+    {
+        LogUse("replacement");
+        return Replacement;
+    }
 
-        ~RunResult()
+    public EventContext EventContext => _loggingContext.EventContext;
+
+    void LogUse(string use)
+    {
+        _loggingContext.Log("Use", use);
+        _loggingContext.Finalize();
+    }
+
+    ~RunResult()
+    {
+        if (!_loggingContext.WasFinalized)
         {
-            if (!_loggedProperly)
-            {
-                _eventContext.SetToWarning("Call UseExisting or UseReplacement in order to avoid this warning");
-                LogUse("Unknown");
-            }
+            _loggingContext.Warn("Call UseExisting or UseReplacement in order to avoid this warning");
+            LogUse("unknown");
         }
     }
 }
