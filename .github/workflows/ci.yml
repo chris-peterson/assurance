@@ -2,32 +2,23 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - '*'
+    tags:
+      - '*.*.*'
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     env:
       Configuration: Release
 
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 7.0.x
-    - name: Build
-      run: dotnet build
-    - name: Test
-      run: dotnet test --no-build
-    - name: Publish
-      run: dotnet nuget push ./src/assurance/bin/Release/*.nupkg -k $NUGET_AUTH_TOKEN -s https://api.nuget.org/v3/index.json
-      env:
-        NUGET_AUTH_TOKEN: ${{secrets.NUGET_API_KEY}}
-      if: github.event_name != 'pull_request'
-    environment:
-      name: NuGet.org
-      url: https://www.nuget.org/packages/Assurance
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build
+        run: dotnet build

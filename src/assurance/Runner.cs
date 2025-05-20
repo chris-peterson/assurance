@@ -2,175 +2,164 @@
 using System.Threading.Tasks;
 using Spiffy.Monitoring;
 
-namespace Assurance
+namespace Assurance;
+
+public static class Runner
 {
-    public static class Runner
+    public static async Task<RunResult<T>> RunInParallel<T>(
+        string taskName,
+        Func<T> existing,
+        Func<T> replacement,
+        EventContext eventContext = null)
     {
-        public static async Task<RunResult<T>> RunInParallel<T>(
-            string taskName,
-            Func<T> existing, Func<T> replacement)
+        return await RunInParallel(
+            taskName,
+            existing != null ? (Func<Task<T>>)(() => Task.FromResult(existing())) : null,
+            replacement != null ? (Func<Task<T>>)(() => Task.FromResult(replacement())) : null,
+            eventContext);
+    }
+
+    public static async Task<RunResult<T>> RunInParallel<T>(
+        string taskName,
+        Func<Task<T>> existing,
+        Func<Task<T>> replacement,
+        EventContext eventContext = null)
+    {
+        string loggingPrefix = null;
+        bool isMyEventContext = false;
+        if (eventContext == null)
         {
-            var context = new EventContext("Assurance", taskName);
+            isMyEventContext = true;
+            eventContext = new EventContext("Assurance", taskName);
+        }
+        else
+        {
+            loggingPrefix = "Assurance";
+            eventContext[$"{loggingPrefix}Task"] = taskName;
+        }
+        var loggingContext = new LoggingContext(eventContext, loggingPrefix, isMyEventContext);
 
-            if (existing == null)
-            {
-                context.AppendToValue("Warnings", "Existing implementation is undefined", ",");
-                existing = () => default;
-            }
-            if (replacement == null)
-            {
-                context.AppendToValue("Warnings", "Replacement implementation is undefined", ",");
-                replacement = () => default;
-            }
-
-            var existingTask = new TaskRunner<T>(context, "Existing", existing, true);
-            var replacementTask = new TaskRunner<T>(context, "Replacement", replacement, false);
-
-            await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
-
-            var result = new RunResult<T>(existingTask.Result, replacementTask.Result, context);
-            if (result.SameResult)
-            {
-                context["Result"] = "same";
-            }
-            else
-            {
-                context["Result"] = "different";
-                context["Existing"] = existingTask.Result;
-                context["Replacement"] = replacementTask.Result;
-            }
-
-            return result;
+        if (existing == null)
+        {
+            loggingContext.AppendToValue("Warnings", "Existing implementation is undefined");
+            existing = () => Task.FromResult(default(T));
+        }
+        if (replacement == null)
+        {
+            loggingContext.AppendToValue("Warnings", "Replacement implementation is undefined");
+            replacement = () => Task.FromResult(default(T));
         }
 
-        public static async Task<RunResult<T>> RunInParallel<T>(
-            string taskName,
-            Func<Task<T>> existing, Func<Task<T>> replacement)
+        var existingTask = new AsyncTaskRunner<T>(eventContext, "Existing", existing, true);
+        var replacementTask = new AsyncTaskRunner<T>(eventContext, "Replacement", replacement, false);
+
+        await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
+
+        var result = new RunResult<T>(existingTask.Result, replacementTask.Result, loggingContext);
+        if (result.SameResult)
         {
-            var context = new EventContext("Assurance", taskName);
-
-            if (existing == null)
-            {
-                context.AppendToValue("Warnings", "Existing implementation is undefined", ",");
-                existing = () => Task.FromResult(default(T));
-            }
-            if (replacement == null)
-            {
-                context.AppendToValue("Warnings", "Replacement implementation is undefined", ",");
-                replacement = () => Task.FromResult(default(T));
-            }
-
-            var existingTask = new AsyncTaskRunner<T>(context, "Existing", existing, true);
-            var replacementTask = new AsyncTaskRunner<T>(context, "Replacement", replacement, false);
-
-            await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
-
-            var result = new RunResult<T>(existingTask.Result, replacementTask.Result, context);
-            if (result.SameResult)
-            {
-                context["Result"] = "same";
-            }
-            else
-            {
-                context["Result"] = "different";
-                context["Existing"] = existingTask.Result;
-                context["Replacement"] = replacementTask.Result;
-            }
-
-            return result;
+            loggingContext.Log("Result", "same");
+        }
+        else
+        {
+            loggingContext.Log("Result", "different");
+            loggingContext.Log("Existing", existingTask.Result);
+            loggingContext.Log("Replacement", replacementTask.Result);
         }
 
-        class TaskRunner<T>
+        return result;
+    }
+    
+    class TaskRunner<T>
+    {
+        readonly EventContext _context;
+        readonly string _label;
+
+        public TaskRunner(EventContext context, string label, Func<T> work, bool shouldRethrowExceptions)
         {
-            readonly EventContext _context;
-            readonly string _label;
+            _context = context;
+            _label = label;
+            Work = new Task<T>(work);
+            ShouldRethrowExceptions = shouldRethrowExceptions;
+        }
 
-            public TaskRunner(EventContext context, string label, Func<T> work, bool shouldRethrowExceptions)
+        public async Task<T> RunAsync()
+        {
+            using (_context.Timers.TimeOnce(_label))
             {
-                _context = context;
-                _label = label;
-                Work = new Task<T>(work);
-                ShouldRethrowExceptions = shouldRethrowExceptions;
-            }
-
-            public async Task<T> RunAsync()
-            {
-                using (_context.Timers.TimeOnce(_label))
+                Work.Start();
+                try
                 {
-                    Work.Start();
-                    try
-                    {
-                        Result = await Work;
-                    }
-                    catch (Exception ex)
-                    {
-                        Exception = ex;
-                        _context.IncludeException(Exception, _label);
-                        if (ShouldRethrowExceptions)
-                        {
-                            throw;
-                        }
-                        else
-                        {
-                            _context.SetToInfo();
-                        }
-                    }
-
-                    return Result;
+                    Result = await Work;
                 }
-            }
-
-            public T Result { get; private set; }
-            public Exception Exception { get; private set; }
-
-            Task<T> Work { get; }
-            bool ShouldRethrowExceptions { get; }
-        }
-
-        class AsyncTaskRunner<T>
-        {
-            readonly EventContext _context;
-            readonly string _label;
-
-            public AsyncTaskRunner(EventContext context, string label, Func<Task<T>> work, bool shouldRethrowExceptions)
-            {
-                _context = context;
-                _label = label;
-                Work = work;
-                ShouldRethrowExceptions = shouldRethrowExceptions;
-            }
-
-            public async Task<T> RunAsync()
-            {
-                using (_context.Timers.TimeOnce(_label))
+                catch (Exception ex)
                 {
-                    try
+                    Exception = ex;
+                    _context.IncludeException(Exception, _label);
+                    if (ShouldRethrowExceptions)
                     {
-                        Result = await Work.Invoke();
+                        throw;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        Exception = ex;
-                        _context.IncludeException(Exception, _label);
-                        if (ShouldRethrowExceptions)
-                        {
-                            throw;
-                        }
-                        else
-                        {
-                            _context.SetToInfo();
-                        }
+                        _context.SetToInfo();
                     }
-
-                    return Result;
                 }
+
+                return Result;
             }
-
-            public T Result { get; private set; }
-            public Exception Exception { get; private set; }
-
-            Func<Task<T>> Work { get; }
-            bool ShouldRethrowExceptions { get; }
         }
+
+        public T Result { get; private set; }
+        public Exception Exception { get; private set; }
+
+        Task<T> Work { get; }
+        bool ShouldRethrowExceptions { get; }
+    }
+
+    class AsyncTaskRunner<T>
+    {
+        readonly EventContext _context;
+        readonly string _label;
+
+        public AsyncTaskRunner(EventContext context, string label, Func<Task<T>> work, bool shouldRethrowExceptions)
+        {
+            _context = context;
+            _label = label;
+            Work = work;
+            ShouldRethrowExceptions = shouldRethrowExceptions;
+        }
+
+        public async Task<T> RunAsync()
+        {
+            using (_context.Timers.TimeOnce(_label))
+            {
+                try
+                {
+                    Result = await Work.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    Exception = ex;
+                    _context.IncludeException(Exception, _label);
+                    if (ShouldRethrowExceptions)
+                    {
+                        throw;
+                    }
+                    else
+                    {
+                        _context.SetToInfo();
+                    }
+                }
+
+                return Result;
+            }
+        }
+
+        public T Result { get; private set; }
+        public Exception Exception { get; private set; }
+
+        Func<Task<T>> Work { get; }
+        bool ShouldRethrowExceptions { get; }
     }
 }
