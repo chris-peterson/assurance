@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>1.2.0</Version>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <Version>1.3.0</Version>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Title>Assurance</Title>
     <Authors>Chris Peterson</Authors>
     <Description>A library to boost confidence when making code changes</Description>
-    <Copyright>2021-2025</Copyright>
+    <Copyright>2021-2026</Copyright>
     <AssemblyName>Assurance</AssemblyName>
     <PackageId>Assurance</PackageId>
     <PackageProjectUrl>https://github.com/chris-peterson/assurance</PackageProjectUrl>

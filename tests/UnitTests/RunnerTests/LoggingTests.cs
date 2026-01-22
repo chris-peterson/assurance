@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Kekiri.Xunit;
 using Spiffy.Monitoring;
 
