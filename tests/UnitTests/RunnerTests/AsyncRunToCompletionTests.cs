@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using FluentAssertions;
+using AwesomeAssertions;
 using Kekiri.Xunit;
 
 namespace Assurance.UnitTests.RunnerTests;
