@@ -79,7 +79,7 @@ public class RunToCompletionTests : Scenarios<TestingContext>
 
     void the_results_are_identical()
     {
-        Context.Result.SameResult.Should().BeTrue();
+        Context.Result.ResultComparison.AreEqual.Should().BeTrue();
         Context.Result.Existing.Should().BeSameAs(Context.Result.Replacement);
         Context.Result.Existing.Should().BeSameAs(TestString);
         Context.Result.Replacement.Should().BeSameAs(TestString);
@@ -90,7 +90,7 @@ public class RunToCompletionTests : Scenarios<TestingContext>
         var result = Context.Result.UseExisting();
         result.Should().BeSameAs(Context.Existing());
         result.Should().NotBe(Context.Replacement());
-        Context.Result.SameResult.Should().BeFalse();
+        Context.Result.ResultComparison.AreEqual.Should().BeFalse();
     }
 
     void replacement_result_is_used()
@@ -98,14 +98,14 @@ public class RunToCompletionTests : Scenarios<TestingContext>
         var result = Context.Result.UseReplacement();
         result.Should().BeSameAs(Context.Replacement());
         result.Should().NotBe(Context.Existing());
-        Context.Result.SameResult.Should().BeFalse();
+        Context.Result.ResultComparison.AreEqual.Should().BeFalse();
     }
 
     void the_result_is_null()
     {
         Context.Result.Existing.Should().BeNull();
         Context.Result.Replacement.Should().BeNull();
-        Context.Result.SameResult.Should().BeTrue();
+        Context.Result.ResultComparison.AreEqual.Should().BeTrue();
     }
 
     void multiple_implementations()

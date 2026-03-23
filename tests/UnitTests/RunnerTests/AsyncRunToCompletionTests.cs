@@ -68,7 +68,7 @@ public class AsyncRunToCompletionTests : Scenarios<AsyncTestingContext>
 
     void the_results_are_identical()
     {
-        Context.Result.SameResult.Should().BeTrue();
+        Context.Result.ResultComparison.AreEqual.Should().BeTrue();
         Context.Result.Existing.Should().BeSameAs(Context.Result.Replacement);
         Context.Result.Existing.Should().BeSameAs(TestString);
         Context.Result.Replacement.Should().BeSameAs(TestString);
@@ -79,7 +79,7 @@ public class AsyncRunToCompletionTests : Scenarios<AsyncTestingContext>
         var result = Context.Result.UseExisting();
         result.Should().BeSameAs(await Context.Existing.Invoke());
         result.Should().NotBe(await Context.Replacement.Invoke());
-        Context.Result.SameResult.Should().BeFalse();
+        Context.Result.ResultComparison.AreEqual.Should().BeFalse();
     }
 
     async Task replacement_result_is_used()
@@ -87,13 +87,13 @@ public class AsyncRunToCompletionTests : Scenarios<AsyncTestingContext>
         var result = Context.Result.UseReplacement();
         result.Should().BeSameAs(await Context.Replacement.Invoke());
         result.Should().NotBe(await Context.Existing.Invoke());
-        Context.Result.SameResult.Should().BeFalse();
+        Context.Result.ResultComparison.AreEqual.Should().BeFalse();
     }
 
     void the_result_is_null()
     {
         Context.Result.Existing.Should().BeNull();
         Context.Result.Replacement.Should().BeNull();
-        Context.Result.SameResult.Should().BeTrue();
+        Context.Result.ResultComparison.AreEqual.Should().BeTrue();
     }
 }

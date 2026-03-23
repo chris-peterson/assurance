@@ -74,6 +74,6 @@ public class AsyncExceptionTests : Scenarios<AsyncTestingContext>
     {
         Context.Result.Existing.Should().Be("foo");
         Context.Result.Replacement.Should().BeNull();
-        Context.Result.SameResult.Should().BeFalse();
+        Context.Result.ResultComparison.AreEqual.Should().BeFalse();
     }
 }
