@@ -1,3 +1,5 @@
+using System;
+using Assurance.Compare;
 using Spiffy.Monitoring;
 
 namespace Assurance;
@@ -5,24 +7,22 @@ namespace Assurance;
 public class RunResult<T>
 {
     readonly LoggingContext _loggingContext;
-    internal RunResult(T existing, T replacement, LoggingContext loggingContext)
+
+    internal RunResult(T existing, T replacement, IComparisonStrategy<T> comparisonStrategy, LoggingContext loggingContext)
     {
         Existing = existing;
         Replacement = replacement;
         _loggingContext = loggingContext;
+        ResultComparison = comparisonStrategy.Compare(existing, replacement);
     }
 
     public T Existing { get; }
     public T Replacement { get; }
-    public bool SameResult
-    {
-        get
-        {
-            if (Existing == null)
-                return Replacement == null;
-            return Existing.Equals(Replacement);
-        }
-    }
+
+    public ResultComparison ResultComparison { get; }
+
+    [Obsolete("Use ResultComparison.AreEqual instead.")]
+    public bool SameResult => ResultComparison.AreEqual;
 
     public T UseExisting()
     {

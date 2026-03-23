@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Assurance.Compare;
 using Spiffy.Monitoring;
 
 namespace Assurance;
@@ -10,20 +11,23 @@ public static class Runner
         string taskName,
         Func<T> existing,
         Func<T> replacement,
-        EventContext eventContext = null)
+        EventContext eventContext = null,
+        IComparisonStrategy<T> comparisonStrategy = null)
     {
         return await RunInParallel(
             taskName,
             existing != null ? (Func<Task<T>>)(() => Task.FromResult(existing())) : null,
             replacement != null ? (Func<Task<T>>)(() => Task.FromResult(replacement())) : null,
-            eventContext);
+            eventContext,
+            comparisonStrategy);
     }
 
     public static async Task<RunResult<T>> RunInParallel<T>(
         string taskName,
         Func<Task<T>> existing,
         Func<Task<T>> replacement,
-        EventContext eventContext = null)
+        EventContext eventContext = null,
+        IComparisonStrategy<T> comparisonStrategy = null)
     {
         string loggingPrefix = null;
         bool isMyEventContext = false;
@@ -55,16 +59,16 @@ public static class Runner
 
         await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
 
-        var result = new RunResult<T>(existingTask.Result, replacementTask.Result, loggingContext);
-        if (result.SameResult)
+        comparisonStrategy ??= new DeepComparisonStrategy<T>();
+        var result = new RunResult<T>(existingTask.Result, replacementTask.Result, comparisonStrategy, loggingContext);
+        if (result.ResultComparison.AreEqual)
         {
             loggingContext.Log("Result", "same");
         }
         else
         {
             loggingContext.Log("Result", "different");
-            loggingContext.Log("Existing", existingTask.Result);
-            loggingContext.Log("Replacement", replacementTask.Result);
+            loggingContext.Log("Differences", result.ResultComparison.Differences);
         }
 
         return result;
