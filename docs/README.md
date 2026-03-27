@@ -1,4 +1,4 @@
-# assurance
+# <img src="favicon.svg" alt="assurance" width="64" height="64" style="vertical-align: middle"> assurance
 
 A library to boost confidence when making code changes.
 
