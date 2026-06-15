@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Assurance.Compare;
+using Assurance.Logging;
 using Spiffy.Monitoring;
 
 namespace Assurance;
@@ -12,14 +13,16 @@ public static class Runner
         Func<T> existing,
         Func<T> replacement,
         EventContext eventContext = null,
-        IComparisonStrategy<T> comparisonStrategy = null)
+        IComparisonStrategy<T> comparisonStrategy = null,
+        ILogStrategy<T> logStrategy = null)
     {
         return await RunInParallel(
             taskName,
             existing != null ? (Func<Task<T>>)(() => Task.FromResult(existing())) : null,
             replacement != null ? (Func<Task<T>>)(() => Task.FromResult(replacement())) : null,
             eventContext,
-            comparisonStrategy);
+            comparisonStrategy,
+            logStrategy);
     }
 
     public static async Task<RunResult<T>> RunInParallel<T>(
@@ -27,50 +30,31 @@ public static class Runner
         Func<Task<T>> existing,
         Func<Task<T>> replacement,
         EventContext eventContext = null,
-        IComparisonStrategy<T> comparisonStrategy = null)
+        IComparisonStrategy<T> comparisonStrategy = null,
+        ILogStrategy<T> logStrategy = null)
     {
-        string loggingPrefix = null;
-        bool isMyEventContext = false;
-        if (eventContext == null)
-        {
-            isMyEventContext = true;
-            eventContext = new EventContext("Assurance", taskName);
-        }
-        else
-        {
-            loggingPrefix = "Assurance";
-            eventContext[$"{loggingPrefix}Task"] = taskName;
-        }
-        var loggingContext = new LoggingContext(eventContext, loggingPrefix, isMyEventContext);
-
+        logStrategy ??= new DefaultLogStrategy<T>(taskName, eventContext);
+        
         if (existing == null)
         {
-            loggingContext.AppendToValue("Warnings", "Existing implementation is undefined");
+            logStrategy.AppendToValue("Warnings", "Existing implementation is undedfined");
             existing = () => Task.FromResult(default(T));
         }
         if (replacement == null)
         {
-            loggingContext.AppendToValue("Warnings", "Replacement implementation is undefined");
+            logStrategy.AppendToValue("Warnings", "Replacement implementation is undefined");
             replacement = () => Task.FromResult(default(T));
         }
 
-        var existingTask = new AsyncTaskRunner<T>(eventContext, "Existing", existing, true);
-        var replacementTask = new AsyncTaskRunner<T>(eventContext, "Replacement", replacement, false);
+        var existingTask = new AsyncTaskRunner<T>(logStrategy.EventContext, "Existing", existing, true);
+        var replacementTask = new AsyncTaskRunner<T>(logStrategy.EventContext, "Replacement", replacement, false);
 
         await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
 
         comparisonStrategy ??= new DeepComparisonStrategy<T>();
-        var result = new RunResult<T>(existingTask.Result, replacementTask.Result, comparisonStrategy, loggingContext);
-        if (result.ResultComparison.AreEqual)
-        {
-            loggingContext.Log("Result", "same");
-        }
-        else
-        {
-            loggingContext.Log("Result", "different");
-            loggingContext.Log("Differences", result.ResultComparison.Differences);
-        }
-
+        var result = new RunResult<T>(existingTask.Result, replacementTask.Result, comparisonStrategy, logStrategy);
+        logStrategy.LogRunResult(result);
+        
         return result;
     }
     
