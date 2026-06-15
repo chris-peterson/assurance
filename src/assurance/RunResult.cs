@@ -1,18 +1,19 @@
 using System;
 using Assurance.Compare;
+using Assurance.Logging;
 using Spiffy.Monitoring;
 
 namespace Assurance;
 
 public class RunResult<T>
 {
-    readonly LoggingContext _loggingContext;
+    readonly ILogStrategy<T> _logstrategy;
 
-    internal RunResult(T existing, T replacement, IComparisonStrategy<T> comparisonStrategy, LoggingContext loggingContext)
+    internal RunResult(T existing, T replacement, IComparisonStrategy<T> comparisonStrategy, ILogStrategy<T> logStrategy)
     {
         Existing = existing;
         Replacement = replacement;
-        _loggingContext = loggingContext;
+        _logstrategy = logStrategy;
         ResultComparison = comparisonStrategy.Compare(existing, replacement);
     }
 
@@ -36,19 +37,19 @@ public class RunResult<T>
         return Replacement;
     }
 
-    public EventContext EventContext => _loggingContext.EventContext;
+    public EventContext EventContext => _logstrategy.EventContext;
 
     void LogUse(string use)
     {
-        _loggingContext.Log("Use", use);
-        _loggingContext.Finalize();
+        _logstrategy.Log("Use", use);
+        _logstrategy.Finalize();
     }
 
     ~RunResult()
     {
-        if (!_loggingContext.WasFinalized)
+        if (!_logstrategy.WasFinalized)
         {
-            _loggingContext.Warn("Call UseExisting or UseReplacement in order to avoid this warning");
+            _logstrategy.Warn("Call UseExisting or UseReplacement in order to avoid this warning");
             LogUse("unknown");
         }
     }
