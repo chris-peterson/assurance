@@ -2,7 +2,6 @@ using Assurance.UnitTests.TestModels;
 using AwesomeAssertions;
 using Kekiri.Xunit;
 using Spiffy.Monitoring;
-using System;
 using System.Collections.Generic;
 
 namespace Assurance.UnitTests.RunnerTests;
@@ -42,21 +41,23 @@ public class LoggingTests : Scenarios<TestingContext>
     }
 
     [Scenario]
-    public void Include_default_same_output_if_none_is_provided()
+    public void Default_logging_outputs_same_result()
     {
-        When(same_list_results_are_compared);
+        Given(same_values_for_compare);
+        When(event_context_not_specified);
         Then(default_same_output_is_logged);
     }
 
     [Scenario]
-    public void Include_default_difference_output_if_none_is_provided()
+    public void Default_logging_outputs_different_result()
     {
-        When(different_list_results_are_compared);
+        Given(different_values_for_compare);
+        When(event_context_not_specified);
         Then(default_difference_output_is_logged);
     }
 
     [Scenario]
-    public void Include_custom_same_output()
+    public void Custom_logging_outputs_same_result()
     {
         Given(a_custom_log_strategy);
         When(same_list_results_are_compared);
@@ -64,11 +65,23 @@ public class LoggingTests : Scenarios<TestingContext>
     }
 
     [Scenario]
-    public void Include_custom_difference_output()
+    public void Custom_logging_outputs_different_result()
     {
         Given(a_custom_log_strategy);
         When(different_list_results_are_compared);
         Then(Custom_difference_output_is_logged);
+    }
+
+    private void same_values_for_compare()
+    {
+        Context.Existing = () => "foo";
+        Context.Replacement = () => "foo";
+    }
+
+    private void different_values_for_compare()
+    {
+        Context.Existing = () => "foo";
+        Context.Replacement = () => "doo";
     }
 
     private void a_custom_log_strategy()
@@ -151,14 +164,14 @@ public class LoggingTests : Scenarios<TestingContext>
 
     private void default_same_output_is_logged()
     {
-        _listResult.EventContext["Result"].Should().Be("same");
-        _listResult.EventContext["Differences"].Should().Be(string.Empty);
+        Context.Result.EventContext["Result"].Should().Be("same");
+        Context.Result.EventContext["Differences"].Should().Be(string.Empty);
     }
 
     private void default_difference_output_is_logged()
     {
-        _listResult.EventContext["Result"].Should().Be("different");
-        _listResult.EventContext["Differences"].Should().Be(_listResult.ResultComparison.Differences);
+        Context.Result.EventContext["Result"].Should().Be("different");
+        Context.Result.EventContext["Differences"].ToString().Should().ContainAll("(1 differences)", "Values (foo,doo)");
     }
 
     private void custom_same_output_is_logged()
