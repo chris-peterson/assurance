@@ -1,31 +1,47 @@
-﻿using Spiffy.Monitoring;
+using System;
+using Spiffy.Monitoring;
 
 namespace Assurance.Logging;
 
 public class DefaultLogStrategy<T> : ILogStrategy<T>
 {
-    private EventContext _eventContext; 
-    private string _loggingPrefix; 
-    private bool _isMyEventContext;
+    readonly EventContext _providedEventContext;
+    readonly bool _isMyEventContext;
+    readonly string _loggingPrefix;
+
+    EventContext _eventContext;
+    bool _begun;
+
+    public DefaultLogStrategy(EventContext eventContext = null)
+    {
+        _providedEventContext = eventContext;
+        _isMyEventContext = eventContext == null;
+        _loggingPrefix = _isMyEventContext ? null : "Assurance";
+    }
 
     public EventContext EventContext => _eventContext;
-    public bool WasFinalized { get; internal set; }
 
-    public DefaultLogStrategy(string taskName, EventContext eventContext = null)
+    public bool WasCompleted { get; private set; }
+
+    public void Begin(string taskName)
     {
-        _loggingPrefix = null;
-        _isMyEventContext = false;
-        if (eventContext == null)
+        if (_begun)
         {
-            _isMyEventContext = true;
-            eventContext = new EventContext("Assurance", taskName);
+            throw new InvalidOperationException(
+                $"{GetType().Name} is single-use because it owns the lifetime of one log event; " +
+                "construct one per run instead of sharing an instance.");
+        }
+        _begun = true;
+
+        if (_isMyEventContext)
+        {
+            _eventContext = new EventContext("Assurance", taskName);
         }
         else
         {
-            _loggingPrefix = "Assurance";
-            eventContext[$"{_loggingPrefix}Task"] = taskName;
+            _eventContext = _providedEventContext;
+            _eventContext[GetLoggingKey("Task")] = taskName;
         }
-        _eventContext = eventContext;
     }
 
     string GetLoggingKey(string key)
@@ -56,15 +72,17 @@ public class DefaultLogStrategy<T> : ILogStrategy<T>
         }
     }
 
-#pragma warning disable CS0465 // Introducing a 'Finalize' method can interfere with destructor invocation
-    public void Finalize()
-#pragma warning restore CS0465 // Introducing a 'Finalize' method can interfere with destructor invocation
+    public void Complete()
     {
+        if (WasCompleted)
+        {
+            return;
+        }
+        WasCompleted = true;
         if (_isMyEventContext)
         {
             _eventContext.Dispose();
         }
-        WasFinalized = true;
     }
 
     public void Warn(string value)
