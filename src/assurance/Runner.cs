@@ -33,22 +33,26 @@ public static class Runner
         IComparisonStrategy<T> comparisonStrategy = null,
         ILogStrategy<T> logStrategy = null)
     {
-        if (logStrategy != null && eventContext != null)
-        {
-            throw new ArgumentException(
-                $"Supply either {nameof(eventContext)} or {nameof(logStrategy)}, not both -- " +
-                "a log strategy owns the event context it writes to.", nameof(logStrategy));
-        }
-
+        var eventContextIsRedundant = logStrategy != null && eventContext != null;
         logStrategy ??= new DefaultLogStrategy<T>(eventContext);
         logStrategy.Begin(taskName);
 
-        if (logStrategy.EventContext == null)
+        if (eventContextIsRedundant)
         {
-            throw new ArgumentException(
-                $"{logStrategy.GetType().Name}.{nameof(ILogStrategy<T>.EventContext)} is null after " +
-                $"{nameof(ILogStrategy<T>.Begin)}; timings for both implementations are recorded against it.",
-                nameof(logStrategy));
+            logStrategy.AppendToValue("Warnings",
+                $"{nameof(eventContext)} was ignored; {nameof(logStrategy)} writes to its own");
+        }
+
+        // both implementations are timed against one context, so the run needs one even
+        // when the strategy logs somewhere else entirely
+        var timingContext = logStrategy.EventContext;
+        var isMyTimingContext = timingContext == null;
+        if (isMyTimingContext)
+        {
+            timingContext = new EventContext("Assurance", taskName);
+            timingContext.AppendToValue("Warnings",
+                $"{logStrategy.GetType().Name} supplied no {nameof(EventContext)}; timings are recorded here",
+                ",");
         }
 
         if (existing == null)
@@ -62,16 +66,26 @@ public static class Runner
             replacement = () => Task.FromResult(default(T));
         }
 
-        var existingTask = new AsyncTaskRunner<T>(logStrategy.EventContext, "Existing", existing, true);
-        var replacementTask = new AsyncTaskRunner<T>(logStrategy.EventContext, "Replacement", replacement, false);
+        try
+        {
+            var existingTask = new AsyncTaskRunner<T>(timingContext, "Existing", existing, true);
+            var replacementTask = new AsyncTaskRunner<T>(timingContext, "Replacement", replacement, false);
 
-        await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
+            await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
 
-        comparisonStrategy ??= new DeepComparisonStrategy<T>();
-        var result = new RunResult<T>(existingTask.Result, replacementTask.Result, comparisonStrategy, logStrategy);
-        logStrategy.LogRunResult(result);
-        
-        return result;
+            comparisonStrategy ??= new DeepComparisonStrategy<T>();
+            var result = new RunResult<T>(existingTask.Result, replacementTask.Result, comparisonStrategy, logStrategy);
+            logStrategy.LogRunResult(result);
+
+            return result;
+        }
+        finally
+        {
+            if (isMyTimingContext)
+            {
+                timingContext.Dispose();
+            }
+        }
     }
     
     class TaskRunner<T>
