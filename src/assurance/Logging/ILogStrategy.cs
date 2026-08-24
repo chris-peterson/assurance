@@ -1,18 +1,27 @@
-﻿using Spiffy.Monitoring;
+using Spiffy.Monitoring;
 
 namespace Assurance.Logging;
 
 public interface ILogStrategy<T>
 {
     EventContext EventContext { get; }
-    
-    void AppendToValue(string v1, string v2);
+
+    /// <summary>
+    /// Called by <see cref="Runner"/> once, before any other member, with the task name it was given.
+    /// Implementations that own their <see cref="EventContext"/> should create it here.
+    /// </summary>
+    void Begin(string taskName);
+
+    void AppendToValue(string field, string value);
     void Log(string field, object value);
     void LogRunResult(RunResult<T> result);
     void Warn(string message);
-    
-    bool WasFinalized { get; }
-    #pragma warning disable CS0465 // Introducing a 'Finalize' method can interfere with destructor invocation
-    void Finalize();
-    #pragma warning restore CS0465 // Introducing a 'Finalize' method can interfere with destructor invocation
+
+    bool WasCompleted { get; }
+
+    /// <summary>
+    /// Called once the outcome is known. Implementations that own their
+    /// <see cref="EventContext"/> should dispose it here. Must be idempotent.
+    /// </summary>
+    void Complete();
 }
