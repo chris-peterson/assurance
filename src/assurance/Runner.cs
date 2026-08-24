@@ -33,11 +33,27 @@ public static class Runner
         IComparisonStrategy<T> comparisonStrategy = null,
         ILogStrategy<T> logStrategy = null)
     {
-        logStrategy ??= new DefaultLogStrategy<T>(taskName, eventContext);
-        
+        if (logStrategy != null && eventContext != null)
+        {
+            throw new ArgumentException(
+                $"Supply either {nameof(eventContext)} or {nameof(logStrategy)}, not both -- " +
+                "a log strategy owns the event context it writes to.", nameof(logStrategy));
+        }
+
+        logStrategy ??= new DefaultLogStrategy<T>(eventContext);
+        logStrategy.Begin(taskName);
+
+        if (logStrategy.EventContext == null)
+        {
+            throw new ArgumentException(
+                $"{logStrategy.GetType().Name}.{nameof(ILogStrategy<T>.EventContext)} is null after " +
+                $"{nameof(ILogStrategy<T>.Begin)}; timings for both implementations are recorded against it.",
+                nameof(logStrategy));
+        }
+
         if (existing == null)
         {
-            logStrategy.AppendToValue("Warnings", "Existing implementation is undedfined");
+            logStrategy.AppendToValue("Warnings", "Existing implementation is undefined");
             existing = () => Task.FromResult(default(T));
         }
         if (replacement == null)
