@@ -1,4 +1,3 @@
-using System;
 using Spiffy.Monitoring;
 
 namespace Assurance.Logging;
@@ -25,13 +24,9 @@ public class DefaultLogStrategy<T> : ILogStrategy<T>
 
     public void Begin(string taskName)
     {
-        if (_begun)
-        {
-            throw new InvalidOperationException(
-                $"{GetType().Name} is single-use because it owns the lifetime of one log event; " +
-                "construct one per run instead of sharing an instance.");
-        }
+        var isReuse = _begun;
         _begun = true;
+        WasCompleted = false;
 
         if (_isMyEventContext)
         {
@@ -41,6 +36,13 @@ public class DefaultLogStrategy<T> : ILogStrategy<T>
         {
             _eventContext = _providedEventContext;
             _eventContext[GetLoggingKey("Task")] = taskName;
+        }
+
+        if (isReuse)
+        {
+            AppendToValue("Warnings",
+                $"{GetType().Name} was shared across runs; construct one per run so each " +
+                "result reports its own outcome");
         }
     }
 
