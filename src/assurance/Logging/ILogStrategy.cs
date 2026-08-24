@@ -7,8 +7,9 @@ public interface ILogStrategy<T>
     EventContext EventContext { get; }
 
     /// <summary>
-    /// Called by <see cref="Runner"/> once, before any other member, with the task name it was given.
-    /// Implementations that own their <see cref="EventContext"/> should create it here.
+    /// Called by <see cref="Runner"/> at the start of every run, before any other member, with the
+    /// task name it was given. Implementations that own their <see cref="EventContext"/> should
+    /// create a fresh one here, so a shared instance still reports each run in full.
     /// </summary>
     void Begin(string taskName);
 

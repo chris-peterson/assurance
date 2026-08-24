@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Assurance.UnitTests.TestModels;
@@ -83,26 +82,27 @@ public class LoggingTests : Scenarios<TestingContext>
     }
 
     [Scenario]
-    public void Supplying_both_an_event_context_and_a_log_strategy_is_rejected()
+    public void Supplying_both_an_event_context_and_a_log_strategy_warns()
     {
         Given(a_custom_log_strategy);
-        WhenAsync(both_an_event_context_and_a_log_strategy_are_supplied).Throws();
-        Then(the_conflicting_arguments_are_reported);
+        WhenAsync(both_an_event_context_and_a_log_strategy_are_supplied);
+        Then(the_redundant_event_context_is_reported);
     }
 
     [Scenario]
-    public void Reusing_a_log_strategy_across_runs_is_rejected()
+    public void Reusing_a_log_strategy_across_runs_warns_and_starts_a_new_event()
     {
         Given(a_custom_log_strategy);
-        WhenAsync(the_same_log_strategy_is_used_twice).Throws();
-        Then(the_single_use_violation_is_reported);
+        WhenAsync(the_same_log_strategy_is_used_twice);
+        Then(the_second_run_is_logged_in_full)
+            .And(the_shared_strategy_is_reported);
     }
 
     [Scenario]
-    public void A_log_strategy_without_an_event_context_is_rejected()
+    public void A_log_strategy_without_an_event_context_still_runs()
     {
-        WhenAsync(a_strategy_with_no_event_context_is_supplied).Throws();
-        Then(the_missing_event_context_is_reported);
+        WhenAsync(a_strategy_with_no_event_context_is_supplied);
+        Then(the_run_completes_without_an_event_context);
     }
 
     void same_values_for_compare()
@@ -170,7 +170,7 @@ public class LoggingTests : Scenarios<TestingContext>
     async Task the_same_log_strategy_is_used_twice()
     {
         await same_list_results_are_compared();
-        await same_list_results_are_compared();
+        await different_list_results_are_compared();
     }
 
     async Task a_strategy_with_no_event_context_is_supplied()
@@ -253,21 +253,28 @@ public class LoggingTests : Scenarios<TestingContext>
         _listResult.EventContext.Operation.Should().Be("RunTests");
     }
 
-    void the_conflicting_arguments_are_reported()
+    void the_redundant_event_context_is_reported()
     {
-        Catch<ArgumentException>()
-            .Message.Should().Contain("not both");
+        _listResult.EventContext["Warnings"].ToString().Should().Contain("eventContext was ignored");
+        _myContext.Contains("AssuranceResult").Should().BeFalse();
     }
 
-    void the_single_use_violation_is_reported()
+    void the_second_run_is_logged_in_full()
     {
-        Catch<InvalidOperationException>()
-            .Message.Should().Contain("single-use");
+        _listResult.EventContext["Result"].Should().Be("notEqual");
+        _listResult.EventContext["ExistingFive"].Should().Be("1,2,3,5,4");
+        _listResult.EventContext["ReplacementFive"].Should().Be("1,2,3,4,5");
     }
 
-    void the_missing_event_context_is_reported()
+    void the_shared_strategy_is_reported()
     {
-        Catch<ArgumentException>()
-            .Message.Should().Contain(nameof(NullContextLogStrategy));
+        _listResult.EventContext["Warnings"].ToString().Should().Contain("shared across runs");
+    }
+
+    void the_run_completes_without_an_event_context()
+    {
+        Context.Result.Existing.Should().Be("foo");
+        Context.Result.ResultComparison.AreEqual.Should().BeTrue();
+        Context.Result.EventContext.Should().BeNull();
     }
 }
