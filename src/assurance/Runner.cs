@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Assurance.Compare;
 using Assurance.Logging;
@@ -13,16 +13,29 @@ public static class Runner
         Func<T> existing,
         Func<T> replacement,
         EventContext eventContext = null,
-        IComparisonStrategy<T> comparisonStrategy = null,
-        ILogStrategy<T> logStrategy = null)
+        IComparisonStrategy<T> comparisonStrategy = null)
+    {
+        return await RunInParallel(
+            taskName,
+            existing,
+            replacement,
+            new DefaultLogStrategy<T>(eventContext),
+            comparisonStrategy);
+    }
+
+    public static async Task<RunResult<T>> RunInParallel<T>(
+        string taskName,
+        Func<T> existing,
+        Func<T> replacement,
+        ILogStrategy<T> logStrategy,
+        IComparisonStrategy<T> comparisonStrategy = null)
     {
         return await RunInParallel(
             taskName,
             existing != null ? (Func<Task<T>>)(() => Task.FromResult(existing())) : null,
             replacement != null ? (Func<Task<T>>)(() => Task.FromResult(replacement())) : null,
-            eventContext,
-            comparisonStrategy,
-            logStrategy);
+            logStrategy,
+            comparisonStrategy);
     }
 
     public static async Task<RunResult<T>> RunInParallel<T>(
@@ -30,39 +43,54 @@ public static class Runner
         Func<Task<T>> existing,
         Func<Task<T>> replacement,
         EventContext eventContext = null,
-        IComparisonStrategy<T> comparisonStrategy = null,
-        ILogStrategy<T> logStrategy = null)
+        IComparisonStrategy<T> comparisonStrategy = null)
     {
-        var eventContextIsRedundant = logStrategy != null && eventContext != null;
-        logStrategy ??= new DefaultLogStrategy<T>(eventContext);
-        logStrategy.Begin(taskName);
+        return await RunInParallel(
+            taskName,
+            existing,
+            replacement,
+            new DefaultLogStrategy<T>(eventContext),
+            comparisonStrategy);
+    }
 
-        if (eventContextIsRedundant)
-        {
-            logStrategy.AppendToValue("Warnings",
-                $"{nameof(eventContext)} was ignored; {nameof(logStrategy)} writes to its own");
-        }
+    public static async Task<RunResult<T>> RunInParallel<T>(
+        string taskName,
+        Func<Task<T>> existing,
+        Func<Task<T>> replacement,
+        ILogStrategy<T> logStrategy,
+        IComparisonStrategy<T> comparisonStrategy = null)
+    {
+        var logRun = logStrategy.Begin(taskName);
 
         // both implementations are timed against one context, so the run needs one even
-        // when the strategy logs somewhere else entirely
-        var timingContext = logStrategy.EventContext;
+        // when the log writes somewhere else entirely
+        var timingContext = logRun.EventContext;
         var isMyTimingContext = timingContext == null;
         if (isMyTimingContext)
         {
             timingContext = new EventContext("Assurance", taskName);
             timingContext.AppendToValue("Warnings",
-                $"{logStrategy.GetType().Name} supplied no {nameof(EventContext)}; timings are recorded here",
+                $"{logRun.GetType().Name} supplied no {nameof(EventContext)}; timings are recorded here",
                 ",");
+        }
+
+        void Warn(string message)
+        {
+            logRun.AppendToValue("Warnings", message);
+            if (isMyTimingContext)
+            {
+                timingContext.AppendToValue("Warnings", message, ",");
+            }
         }
 
         if (existing == null)
         {
-            logStrategy.AppendToValue("Warnings", "Existing implementation is undefined");
+            Warn("Existing implementation is undefined");
             existing = () => Task.FromResult(default(T));
         }
         if (replacement == null)
         {
-            logStrategy.AppendToValue("Warnings", "Replacement implementation is undefined");
+            Warn("Replacement implementation is undefined");
             replacement = () => Task.FromResult(default(T));
         }
 
@@ -74,10 +102,16 @@ public static class Runner
             await Task.WhenAll(existingTask.RunAsync(), replacementTask.RunAsync());
 
             comparisonStrategy ??= new DeepComparisonStrategy<T>();
-            var result = new RunResult<T>(existingTask.Result, replacementTask.Result, comparisonStrategy, logStrategy);
-            logStrategy.LogRunResult(result);
+            var result = new RunResult<T>(existingTask.Result, replacementTask.Result, comparisonStrategy, logRun);
+            logRun.LogRunResult(result);
 
             return result;
+        }
+        catch
+        {
+            // no RunResult reaches the caller, so this is the only place left to close out the run
+            logRun.Complete();
+            throw;
         }
         finally
         {
