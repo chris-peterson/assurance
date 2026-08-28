@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Assurance.UnitTests.TestModels;
@@ -82,20 +83,29 @@ public class LoggingTests : Scenarios<TestingContext>
     }
 
     [Scenario]
-    public void Supplying_both_an_event_context_and_a_log_strategy_warns()
-    {
-        Given(a_custom_log_strategy);
-        WhenAsync(both_an_event_context_and_a_log_strategy_are_supplied);
-        Then(the_redundant_event_context_is_reported);
-    }
-
-    [Scenario]
-    public void Reusing_a_log_strategy_across_runs_warns_and_starts_a_new_event()
+    public void Reusing_a_log_strategy_across_runs_starts_a_new_event()
     {
         Given(a_custom_log_strategy);
         WhenAsync(the_same_log_strategy_is_used_twice);
-        Then(the_second_run_is_logged_in_full)
-            .And(the_shared_strategy_is_reported);
+        Then(the_second_run_is_logged_in_full);
+    }
+
+    [Scenario]
+    public void Each_run_on_a_shared_log_strategy_is_emitted_on_its_own()
+    {
+        Given(a_custom_log_strategy)
+            .And(log_events_are_captured);
+        WhenAsync(an_abandoned_run_is_finalized_after_a_later_one);
+        Then(the_abandoned_run_is_emitted_with_an_unknown_use);
+    }
+
+    [Scenario]
+    public void A_finalized_result_leaves_a_later_run_on_the_same_strategy_alone()
+    {
+        Given(a_custom_log_strategy)
+            .And(log_events_are_captured);
+        WhenAsync(an_earlier_result_is_finalized_during_a_later_run);
+        Then(the_later_run_reports_its_own_use);
     }
 
     [Scenario]
@@ -103,6 +113,14 @@ public class LoggingTests : Scenarios<TestingContext>
     {
         WhenAsync(a_strategy_with_no_event_context_is_supplied);
         Then(the_run_completes_without_an_event_context);
+    }
+
+    [Scenario]
+    public void An_undefined_implementation_is_reported_when_the_strategy_has_no_event_context()
+    {
+        Given(log_events_are_captured);
+        WhenAsync(a_strategy_with_no_event_context_runs_an_undefined_implementation);
+        Then(the_undefined_implementation_is_reported_where_the_timings_are);
     }
 
     void same_values_for_compare()
@@ -117,9 +135,23 @@ public class LoggingTests : Scenarios<TestingContext>
         Context.Replacement = () => "doo";
     }
 
+    void log_events_are_captured()
+    {
+        Context.InstallLogProvider();
+    }
+
     void a_custom_log_strategy()
     {
         _myLogStrategy = new ModifiedLogStrategy();
+    }
+
+    Task<RunResult<List<string>>> a_run_named(string taskName, string replacement)
+    {
+        return Runner.RunInParallel(
+            taskName,
+            () => new List<string> { "1" },
+            () => new List<string> { replacement },
+            logStrategy: _myLogStrategy);
     }
 
     async Task using_my_event_context()
@@ -157,20 +189,51 @@ public class LoggingTests : Scenarios<TestingContext>
             logStrategy: _myLogStrategy);
     }
 
-    async Task both_an_event_context_and_a_log_strategy_are_supplied()
-    {
-        _listResult = await Runner.RunInParallel(
-            "RunTests",
-            () => new List<string> { "1" },
-            () => new List<string> { "1" },
-            eventContext: _myContext,
-            logStrategy: _myLogStrategy);
-    }
-
     async Task the_same_log_strategy_is_used_twice()
     {
         await same_list_results_are_compared();
         await different_list_results_are_compared();
+    }
+
+    async Task an_earlier_run_is_completed()
+    {
+        var earlier = await a_run_named("EarlierRun", "1");
+        earlier.UseExisting();
+    }
+
+    async Task an_earlier_result_is_finalized_during_a_later_run()
+    {
+        // the earlier result is unreachable once its own frame is gone, so it can be finalized
+        await an_earlier_run_is_completed();
+
+        _listResult = await a_run_named("LaterRun", "2");
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        _listResult.UseReplacement();
+    }
+
+    async Task an_abandoned_run_is_left_behind()
+    {
+        await a_run_named("AbandonedRun", "1");
+    }
+
+    async Task an_abandoned_run_is_finalized_after_a_later_one()
+    {
+        // the abandoned result is unreachable once its own frame is gone, so it can be finalized
+        await an_abandoned_run_is_left_behind();
+
+        _listResult = await a_run_named("FollowingRun", "2");
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+
+    async Task a_strategy_with_no_event_context_runs_an_undefined_implementation()
+    {
+        Context.Result = await Runner.RunInParallel(
+            "UndefinedExistingWithoutAContext",
+            (Func<string>)null,
+            () => "foo",
+            logStrategy: new NullContextLogStrategy());
     }
 
     async Task a_strategy_with_no_event_context_is_supplied()
@@ -253,10 +316,25 @@ public class LoggingTests : Scenarios<TestingContext>
         _listResult.EventContext.Operation.Should().Be("RunTests");
     }
 
-    void the_redundant_event_context_is_reported()
+    void the_abandoned_run_is_emitted_with_an_unknown_use()
     {
-        _listResult.EventContext["Warnings"].ToString().Should().Contain("eventContext was ignored");
-        _myContext.Contains("AssuranceResult").Should().BeFalse();
+        var properties = Context.EventFor("AbandonedRun").Properties;
+        properties["Result"].Should().Be("equal");
+        properties["Use"].Should().Be("unknown");
+        properties["WarningReason"].Should().Contain("UseExisting");
+    }
+
+    void the_later_run_reports_its_own_use()
+    {
+        var properties = Context.EventFor("LaterRun").Properties;
+        properties["Use"].Should().Be("replacement");
+        properties.Should().NotContainKey("WarningReason");
+    }
+
+    void the_undefined_implementation_is_reported_where_the_timings_are()
+    {
+        Context.EventFor("UndefinedExistingWithoutAContext").Properties["Warnings"]
+            .Should().Contain("Existing implementation is undefined");
     }
 
     void the_second_run_is_logged_in_full()
@@ -264,11 +342,6 @@ public class LoggingTests : Scenarios<TestingContext>
         _listResult.EventContext["Result"].Should().Be("notEqual");
         _listResult.EventContext["ExistingFive"].Should().Be("1,2,3,5,4");
         _listResult.EventContext["ReplacementFive"].Should().Be("1,2,3,4,5");
-    }
-
-    void the_shared_strategy_is_reported()
-    {
-        _listResult.EventContext["Warnings"].ToString().Should().Contain("shared across runs");
     }
 
     void the_run_completes_without_an_event_context()
