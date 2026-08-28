@@ -92,6 +92,73 @@ Sometimes, you might be willing to accept different behavior if, for example, th
 
 Other times, you might find out that the existing system is _wrong_ and you prefer the results from the new implementation.
 
+### Controlling What Is Logged
+
+By default, a run logs `Result` and, when the two implementations disagree, the full
+`Differences` string produced by the comparison. For large object graphs that string
+is unwieldy, and it is rarely the part you care about.
+
+Supply an `ILogStrategy<T>` to decide what a run writes. The simplest route is to
+subclass `DefaultLogStrategy<T>` and `DefaultLogRun<T>` and override `LogRunResult`:
+
+```c#
+    using Assurance.Logging;
+
+    class OrderLogStrategy : DefaultLogStrategy<Order>
+    {
+        public override ILogRun<Order> Begin(string taskName)
+        {
+            return new OrderLogRun(ProvidedEventContext, taskName);
+        }
+    }
+
+    class OrderLogRun : DefaultLogRun<Order>
+    {
+        public OrderLogRun(EventContext eventContext, string taskName)
+            : base(eventContext, taskName)
+        {
+        }
+
+        public override void LogRunResult(RunResult<Order> result)
+        {
+            if (result.ResultComparison.AreEqual)
+            {
+                Log("Result", "same");
+                return;
+            }
+            Log("Result", "different");
+            Log("ExistingTotal", result.Existing?.Total);
+            Log("ReplacementTotal", result.Replacement?.Total);
+        }
+    }
+```
+
+Pass it to the runner in place of an `EventContext`:
+
+```c#
+    var result = (await Runner.RunInParallel(
+        "PriceOrder",
+        () => LegacyPricer.Price(order),
+        () => NewPricer.Price(order),
+        logStrategy: new OrderLogStrategy()))
+        .UseExisting();
+```
+
+```plaintext
+[2021-07-28 21:33:32.242Z] Level=Info Component=Assurance Operation=PriceOrder
+TimeElapsed=500 Result=different ExistingTotal=42.00 ReplacementTotal=41.95
+TimeElapsed_Existing=500 TimeElapsed_Replacement=100 Use=existing
+```
+
+`Begin` is called once per run, so a single strategy can be shared across many runs
+and each still reports in full. `Log` and `AppendToValue` are available anywhere in
+the run if you want to record fields beyond the comparison itself.
+
+To route logs somewhere `Spiffy` cannot reach, implement `ILogStrategy<T>` and
+`ILogRun<T>` directly. `EventContext` may be `null` in that case; the runner creates
+its own context to time the two implementations against, and notes in it that the
+timings landed there.
+
 ### Exception Behavior
 
 An exception that occurs in the _**existing**_ implementation will be logged and re-thrown.
