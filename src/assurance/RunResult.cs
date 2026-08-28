@@ -7,13 +7,13 @@ namespace Assurance;
 
 public class RunResult<T>
 {
-    readonly ILogStrategy<T> _logStrategy;
+    readonly ILogRun<T> _logRun;
 
-    internal RunResult(T existing, T replacement, IComparisonStrategy<T> comparisonStrategy, ILogStrategy<T> logStrategy)
+    internal RunResult(T existing, T replacement, IComparisonStrategy<T> comparisonStrategy, ILogRun<T> logRun)
     {
         Existing = existing;
         Replacement = replacement;
-        _logStrategy = logStrategy;
+        _logRun = logRun;
         ResultComparison = comparisonStrategy.Compare(existing, replacement);
     }
 
@@ -37,27 +37,27 @@ public class RunResult<T>
         return Replacement;
     }
 
-    public EventContext EventContext => _logStrategy.EventContext;
+    public EventContext EventContext => _logRun.EventContext;
 
     void LogUse(string use)
     {
-        _logStrategy.Log("Use", use);
-        _logStrategy.Complete();
+        _logRun.Log("Use", use);
+        _logRun.Complete();
     }
 
     ~RunResult()
     {
         try
         {
-            if (!_logStrategy.WasCompleted)
+            if (!_logRun.WasCompleted)
             {
-                _logStrategy.Warn("Call UseExisting or UseReplacement in order to avoid this warning");
+                _logRun.Warn("Call UseExisting or UseReplacement in order to avoid this warning");
                 LogUse("unknown");
             }
         }
         catch
         {
-            // ILogStrategy is caller-supplied; letting it throw on the finalizer thread would
+            // ILogRun is caller-supplied; letting it throw on the finalizer thread would
             // take down the host process, and there is nowhere left to report it.
         }
     }

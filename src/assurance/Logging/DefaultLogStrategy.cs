@@ -4,91 +4,15 @@ namespace Assurance.Logging;
 
 public class DefaultLogStrategy<T> : ILogStrategy<T>
 {
-    readonly EventContext _providedEventContext;
-    readonly bool _isMyEventContext;
-    readonly string _loggingPrefix;
-
-    EventContext _eventContext;
-    bool _begun;
-
     public DefaultLogStrategy(EventContext eventContext = null)
     {
-        _providedEventContext = eventContext;
-        _isMyEventContext = eventContext == null;
-        _loggingPrefix = _isMyEventContext ? null : "Assurance";
+        ProvidedEventContext = eventContext;
     }
 
-    public EventContext EventContext => _eventContext;
+    protected EventContext ProvidedEventContext { get; }
 
-    public bool WasCompleted { get; private set; }
-
-    public void Begin(string taskName)
+    public virtual ILogRun<T> Begin(string taskName)
     {
-        var isReuse = _begun;
-        _begun = true;
-        WasCompleted = false;
-
-        if (_isMyEventContext)
-        {
-            _eventContext = new EventContext("Assurance", taskName);
-        }
-        else
-        {
-            _eventContext = _providedEventContext;
-            _eventContext[GetLoggingKey("Task")] = taskName;
-        }
-
-        if (isReuse)
-        {
-            AppendToValue("Warnings",
-                $"{GetType().Name} was shared across runs; construct one per run so each " +
-                "result reports its own outcome");
-        }
-    }
-
-    string GetLoggingKey(string key)
-    {
-        return $"{_loggingPrefix}{key}";
-    }
-
-    public void Log(string field, object value)
-    {
-        _eventContext[GetLoggingKey(field)] = value;
-    }
-
-    public void AppendToValue(string field, string value)
-    {
-        _eventContext.AppendToValue(GetLoggingKey(field), value, ",");
-    }
-
-    public virtual void LogRunResult(RunResult<T> result)
-    {
-        if (result.ResultComparison.AreEqual)
-        {
-            Log("Result", "same");
-        }
-        else
-        {
-            Log("Result", "different");
-            Log("Differences", result.ResultComparison.Differences);
-        }
-    }
-
-    public void Complete()
-    {
-        if (WasCompleted)
-        {
-            return;
-        }
-        WasCompleted = true;
-        if (_isMyEventContext)
-        {
-            _eventContext.Dispose();
-        }
-    }
-
-    public void Warn(string value)
-    {
-        _eventContext.SetToWarning(value);
+        return new DefaultLogRun<T>(ProvidedEventContext, taskName);
     }
 }

@@ -7,9 +7,21 @@ namespace Assurance.UnitTests.TestModels;
 
 internal class ModifiedLogStrategy : DefaultLogStrategy<List<string>>
 {
+    public ModifiedLogStrategy(EventContext eventContext = null) : base(eventContext)
+    {
+    }
+
+    public override ILogRun<List<string>> Begin(string taskName)
+    {
+        return new ModifiedLogRun(ProvidedEventContext, taskName);
+    }
+}
+
+internal class ModifiedLogRun : DefaultLogRun<List<string>>
+{
     const int MaxLoggedValues = 5;
 
-    public ModifiedLogStrategy(EventContext eventContext = null) : base(eventContext)
+    public ModifiedLogRun(EventContext eventContext, string taskName) : base(eventContext, taskName)
     {
     }
 
