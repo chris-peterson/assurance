@@ -5,7 +5,10 @@ public class ShallowEqualsStrategy<T> : IComparisonStrategy<T>
     public ResultComparison Compare(T existing, T replacement)
     {
         bool areEqual = Equals(existing, replacement);
-        string differences = areEqual ? "" : $"Values differ: existing=<{existing}>, replacement=<{replacement}>";
-        return new ResultComparison(areEqual, differences);
+        return areEqual
+            ? new ResultComparison(true)
+            : new ResultComparison(
+                false,
+                $"Values differ: existing=<{LogSafeText.Escape(existing)}>, replacement=<{LogSafeText.Escape(replacement)}>");
     }
 }

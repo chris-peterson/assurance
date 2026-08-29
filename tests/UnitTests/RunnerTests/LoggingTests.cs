@@ -292,7 +292,7 @@ public class LoggingTests : Scenarios<TestingContext>
     void default_difference_output_is_logged()
     {
         Context.Result.EventContext["Result"].Should().Be("different");
-        Context.Result.EventContext["Differences"].ToString().Should().ContainAll("(1 differences)", "Values (foo,doo)");
+        Context.Result.EventContext["Differences"].ToString().Should().Be("foo != doo");
     }
 
     void custom_same_output_is_logged()

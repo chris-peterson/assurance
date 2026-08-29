@@ -72,8 +72,8 @@ public class ComparisonStrategyTests
             comparisonStrategy: new NameOnlyComparisonStrategy());
 
         result.ResultComparison.AreEqual.Should().BeFalse();
-        result.ResultComparison.Differences.Should().Contain("Alice");
-        result.ResultComparison.Differences.Should().Contain("Bob");
+        result.ResultComparison.Differences.ToString().Should().Contain("Alice");
+        result.ResultComparison.Differences.ToString().Should().Contain("Bob");
     }
 
     [Fact]

@@ -30,10 +30,12 @@ public static class Runner
         ILogStrategy<T> logStrategy,
         IComparisonStrategy<T> comparisonStrategy = null)
     {
+        // Task.Run, not Task.FromResult: the latter invokes the delegate on the calling thread as
+        // the wrapper is awaited, so the two implementations would run one after the other
         return await RunInParallel(
             taskName,
-            existing != null ? (Func<Task<T>>)(() => Task.FromResult(existing())) : null,
-            replacement != null ? (Func<Task<T>>)(() => Task.FromResult(replacement())) : null,
+            existing != null ? (Func<Task<T>>)(() => Task.Run(existing)) : null,
+            replacement != null ? (Func<Task<T>>)(() => Task.Run(replacement)) : null,
             logStrategy,
             comparisonStrategy);
     }
@@ -120,53 +122,6 @@ public static class Runner
                 timingContext.Dispose();
             }
         }
-    }
-    
-    class TaskRunner<T>
-    {
-        readonly EventContext _context;
-        readonly string _label;
-
-        public TaskRunner(EventContext context, string label, Func<T> work, bool shouldRethrowExceptions)
-        {
-            _context = context;
-            _label = label;
-            Work = new Task<T>(work);
-            ShouldRethrowExceptions = shouldRethrowExceptions;
-        }
-
-        public async Task<T> RunAsync()
-        {
-            using (_context.Timers.TimeOnce(_label))
-            {
-                Work.Start();
-                try
-                {
-                    Result = await Work;
-                }
-                catch (Exception ex)
-                {
-                    Exception = ex;
-                    _context.IncludeException(Exception, _label);
-                    if (ShouldRethrowExceptions)
-                    {
-                        throw;
-                    }
-                    else
-                    {
-                        _context.SetToInfo();
-                    }
-                }
-
-                return Result;
-            }
-        }
-
-        public T Result { get; private set; }
-        public Exception Exception { get; private set; }
-
-        Task<T> Work { get; }
-        bool ShouldRethrowExceptions { get; }
     }
 
     class AsyncTaskRunner<T>
