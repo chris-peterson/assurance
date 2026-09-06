@@ -69,8 +69,6 @@ TimeElapsed=24.6 Result=same TimeElapsed_Existing=24.1 TimeElapsed_Replacement=0
 Use=existing
 ```
 
-Both implementations can be synchronous (`Func<T>`, as above) or asynchronous (`Func<Task<T>>`); `RunInParallel` has overloads for each.
-
 `Result=same` gives us confidence that we haven't regressed behavior.
 
 `TimeElapsed_Replacement < TimeElapsed_Existing` gives us confidence that we haven't regressed performance.
@@ -78,6 +76,9 @@ Both implementations can be synchronous (`Func<T>`, as above) or asynchronous (`
 The returned object makes it easy to toggle implementations (i.e. choose which is the authority).
 
 Generally you'd defer to the existing implementation for some evaluation period, then [cutover to the replacement](#cutting-over).
+
+Both implementations can be synchronous (`Func<T>`, as above) or asynchronous (`Func<Task<T>>`); `RunInParallel` has overloads for each.
+Either way the two run at once on the thread pool, so whatever they share has to be safe to touch from two threads, and thread-affine state on the calling thread does not reach them.
 
 ### Different Results
 
@@ -90,19 +91,16 @@ Operation=ComputeResult TimeElapsed=500 Result=different Differences="1000001 !=
 TimeElapsed_Existing=500 TimeElapsed_Replacement=100
 ```
 
-Comparing objects rather than scalars names each field that differs, nesting and collection
-indexes included:
+Comparing objects rather than scalars names each field that differs, nesting and collection indexes included:
 
 ```plaintext
 Differences="Name: Alice != Bob; Address.City: Springfield != Shelbyville; Tags[1]: b != c"
 ```
 
-Where the two sides differ by type, the type names are reported as the values, e.g.
-`Value: System.Int32 != System.String`.
+Where the two sides differ by type, the type names are reported as the values, e.g. `Value: System.Int32 != System.String`.
 
-Each difference is one `;`-separated entry, so a comparison over a large object graph produces a
-correspondingly large field. [Controlling What Is Logged](#controlling-what-is-logged) covers
-logging a summary instead.
+Each difference is one `;`-separated entry, so a comparison over a large object graph produces a correspondingly large field.
+[Controlling What Is Logged](#controlling-what-is-logged) covers logging a summary instead.
 
 Sometimes, you might be willing to accept different behavior if, for example, the new code is substantially faster.
 
@@ -110,19 +108,15 @@ Other times, you might find out that the existing system is _wrong_ and you pref
 
 ### Controlling What Is Logged
 
-By default, a run logs `Result` and, when the two implementations disagree, every difference the
-comparison found. That default stops serving you in two situations:
+By default, a run logs `Result` and, when the two implementations disagree, every difference the comparison found, up to `DeepComparisonStrategy<T>.DefaultMaxDifferences` (100).
+Pass `new DeepComparisonStrategy<T>(maxDifferences: 500)` to move that ceiling.
 
-- **There are far too many line items to list.** A deep comparison reports every leaf that
-  differs, so a wide object graph produces a field with hundreds of entries in it. Nobody reads
-  that, and the one entry that matters is buried in it.
-- **You are paying by log volume.** If ingest is metered, emitting every difference on every run
-  is an expensive way to learn something you could have learned from one of them. Logging just
-  the first difference and iterating (fix it, run again, see the next) costs a fraction of
-  collecting the whole set on every run, and you were going to fix them one at a time anyway.
+Two situations call for logging something other than the differences themselves.
+A wide object graph differs in many places at once, and the entry you act on is somewhere in the middle of the list.
+Or ingest is metered, and the first difference tells you as much as the whole set, since you fix them one at a time regardless.
 
-Supply an `ILogStrategy<T>` to decide what a run writes. The simplest route is to
-subclass `DefaultLogStrategy<T>` and `DefaultLogRun<T>` and override `LogRunResult`:
+Supply an `ILogStrategy<T>` to decide what a run writes.
+The simplest route is to subclass `DefaultLogStrategy<T>` and `DefaultLogRun<T>` and override `LogRunResult`:
 
 ```c#
     using Assurance.Logging;
@@ -152,12 +146,15 @@ subclass `DefaultLogStrategy<T>` and `DefaultLogRun<T>` and override `LogRunResu
             var differences = result.ResultComparison.Differences;
             Log("Result", "different");
             Log("DifferenceCount", differences.Count);
-            Log("FirstDifference", differences[0]);
+            if (differences.Count > 0)
+            {
+                Log("FirstDifference", differences[0]);
+            }
         }
     }
 ```
 
-Pass it to the runner in place of an `EventContext`:
+Pass it to the runner:
 
 ```c#
     var result = (await Runner.RunInParallel(
@@ -175,18 +172,22 @@ FirstDifference="Address.City: Springfield != Shelbyville"
 TimeElapsed_Existing=500 TimeElapsed_Replacement=100 Use=existing
 ```
 
-`ResultComparison.Differences` is the list of differences, one entry each, so a log can report a
-count, take the first, or pick out the ones it cares about. Rendering the list itself gives every
-entry on one line, which is what the default log writes.
+`ResultComparison.Differences` is the list of differences, one entry each, so a log can report a count, take the first, or pick out the ones it cares about.
+Rendering the list itself gives every entry on one line, which is what the default log writes.
+Entries are escaped as they are stored, so a compared value carrying a line break cannot split the event it is written into.
+Quoting is Spiffy's: it encapsulates a value with a quote character the value doesn't contain, so a value holding all of `"`, `'` and `` ` `` is written between double quotes with its own quotes intact.
 
-`Begin` is called once per run, so a single strategy can be shared across many runs
-and each still reports in full. `Log` and `AppendToValue` are available anywhere in
-the run if you want to record fields beyond the comparison itself.
+A run logs the values it compared.
+Whatever you hand to `Assurance` reaches the log, credentials and personal data included, and an `ILogStrategy<T>` is how you keep a value out of it.
 
-To route logs somewhere `Spiffy` cannot reach, implement `ILogStrategy<T>` and
-`ILogRun<T>` directly. `EventContext` may be `null` in that case; the runner creates
-its own context to time the two implementations against, and notes in it that the
-timings landed there.
+`Begin` is called once per run, so a strategy that opens its own event per run is safe to share across concurrent runs.
+`Log` and `AppendToValue` are available anywhere in the run if you want to record fields beyond the comparison itself.
+
+To record into an event of your own, so an `Assurance` run correlates with what surrounds it, pass `new DefaultLogStrategy<T>(eventContext)`.
+That form writes every run it begins into the one event, so give it to a single run at a time.
+
+To route logs somewhere `Spiffy` cannot reach, implement `ILogStrategy<T>` and `ILogRun<T>` directly.
+`EventContext` may be `null` in that case; the runner creates its own context to time the two implementations against, and notes in it that the timings landed there.
 
 ### Exception Behavior
 

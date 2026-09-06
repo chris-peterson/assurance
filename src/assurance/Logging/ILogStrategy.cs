@@ -1,5 +1,9 @@
 namespace Assurance.Logging;
 
+/// <summary>
+/// What a run logs. Implement this to decide what <see cref="Runner"/> writes about a comparison,
+/// or to send it somewhere Spiffy does not reach.
+/// </summary>
 public interface ILogStrategy<T>
 {
     /// <summary>

@@ -88,28 +88,15 @@ public class ComparisonStrategyTests
         result.ResultComparison.AreEqual.Should().BeTrue("NameOnlyComparisonStrategy ignores Age");
     }
 
-    [Fact]
-    public async Task SameResult_delegates_to_ResultComparison()
-    {
-        var result = await Runner.RunInParallel(
-            "SameResultCompat",
-            () => new Person { Name = "Alice", Age = 30 },
-            () => new Person { Name = "Alice", Age = 30 });
-
-#pragma warning disable CS0618
-        result.SameResult.Should().Be(result.ResultComparison.AreEqual);
-#pragma warning restore CS0618
-    }
-
     class NameOnlyComparisonStrategy : IComparisonStrategy<Person>
     {
         public ResultComparison Compare(Person existing, Person replacement)
         {
-            bool areEqual = existing.Name == replacement.Name;
-            string differences = areEqual
-                ? ""
-                : $"Names differ: {existing.Name} vs {replacement.Name}";
-            return new ResultComparison(areEqual, differences);
+            return existing.Name == replacement.Name
+                ? new ResultComparison(true)
+                : new ResultComparison(
+                    false,
+                    $"Names differ: {existing.Name} vs {replacement.Name}");
         }
     }
 }

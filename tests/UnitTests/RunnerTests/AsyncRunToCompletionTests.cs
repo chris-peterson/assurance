@@ -61,7 +61,7 @@ public class AsyncRunToCompletionTests : Scenarios<AsyncTestingContext>
     async Task implementations_are_run()
     {
         Context.Result = await Runner.RunInParallel(
-            "RunTests",
+            "AsyncRunToCompletionTests",
             Context.Existing,
             Context.Replacement);
     }

@@ -5,6 +5,10 @@ using Spiffy.Monitoring;
 
 namespace Assurance.UnitTests.TestModels;
 
+/// <summary>
+/// A log that summarizes the two results instead of listing every difference, which is the route
+/// the README documents for a consumer with large object graphs.
+/// </summary>
 internal class ModifiedLogStrategy : DefaultLogStrategy<List<string>>
 {
     public ModifiedLogStrategy(EventContext eventContext = null) : base(eventContext)

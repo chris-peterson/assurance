@@ -22,9 +22,6 @@ public class RunResult<T>
 
     public ResultComparison ResultComparison { get; }
 
-    [Obsolete("Use ResultComparison.AreEqual instead.")]
-    public bool SameResult => ResultComparison.AreEqual;
-
     public T UseExisting()
     {
         LogUse("existing");
@@ -43,6 +40,9 @@ public class RunResult<T>
     {
         _logRun.Log("Use", use);
         _logRun.Complete();
+        // suppressed only once the run is closed out: until then the finalizer is what salvages
+        // the event if the caller's log throws on the way through
+        GC.SuppressFinalize(this);
     }
 
     ~RunResult()
@@ -52,13 +52,14 @@ public class RunResult<T>
             if (!_logRun.WasCompleted)
             {
                 _logRun.Warn("Call UseExisting or UseReplacement in order to avoid this warning");
-                LogUse("unknown");
+                _logRun.Log("Use", "unknown");
+                _logRun.Complete();
             }
         }
         catch
         {
             // ILogRun is caller-supplied; letting it throw on the finalizer thread would
-            // take down the host process, and there is nowhere left to report it.
+            // take down the host process, and there is nowhere left to report it
         }
     }
 }

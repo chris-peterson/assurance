@@ -4,11 +4,10 @@ public class ShallowEqualsStrategy<T> : IComparisonStrategy<T>
 {
     public ResultComparison Compare(T existing, T replacement)
     {
-        bool areEqual = Equals(existing, replacement);
-        return areEqual
+        return Equals(existing, replacement)
             ? new ResultComparison(true)
             : new ResultComparison(
                 false,
-                $"Values differ: existing=<{LogSafeText.Escape(existing)}>, replacement=<{LogSafeText.Escape(replacement)}>");
+                $"Values differ: existing=<{LogSafeText.Render(existing)}>, replacement=<{LogSafeText.Render(replacement)}>");
     }
 }
