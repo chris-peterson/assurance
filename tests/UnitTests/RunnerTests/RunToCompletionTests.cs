@@ -43,7 +43,8 @@ public class RunToCompletionTests : Scenarios<TestingContext>
     public void AmbiguousUse()
     {
         Given(multiple_implementations)
-            .But(source_to_use_is_not_specified);
+            .But(source_to_use_is_not_specified)
+            .And(the_run_has_its_own_task_name);
         WhenAsync(implementations_are_run);
         Then(a_warning_is_logged);
     }
@@ -69,10 +70,18 @@ public class RunToCompletionTests : Scenarios<TestingContext>
         Context.Replacement = () => TestString + "something else";
     }
 
+    // EventFor matches on task name, so a scenario asserting on the emitted event needs its own
+    string _taskName = "RunToCompletionTests";
+
+    void the_run_has_its_own_task_name()
+    {
+        _taskName = "AbandonedResultRun";
+    }
+
     async Task implementations_are_run()
     {
         Context.Result = await Runner.RunInParallel(
-            "RunTests",
+            _taskName,
             Context.Existing,
             Context.Replacement);
     }
@@ -122,10 +131,8 @@ public class RunToCompletionTests : Scenarios<TestingContext>
     {
         // coerce finalization
         Context.Result = null;
-        GC.Collect();
 
-        Context.WaitForLogEvent.WaitOne();
-        var props = Context.LoggedEvent.Properties;
+        var props = Context.AwaitEventFor(_taskName).Properties;
         props["Use"].Should().Be("unknown");
         props["WarningReason"].Should().Contain("UseExisting");
         props["WarningReason"].Should().Contain("UseReplacement");

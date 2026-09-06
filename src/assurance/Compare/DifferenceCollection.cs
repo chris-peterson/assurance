@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Assurance.Compare;
 
@@ -9,13 +10,21 @@ namespace Assurance.Compare;
 /// entry alone. Rendering the collection itself gives every entry on one line, which is what a
 /// log writes when it is handed the collection as a field value.
 /// </summary>
+/// <remarks>
+/// Entries are escaped as they are stored, so a compared value carrying a line break cannot split
+/// the event it is written into. Entries with no text are dropped, so a strategy that reports
+/// equality with an empty placeholder still yields an empty collection.
+/// </remarks>
 public class DifferenceCollection : IReadOnlyList<string>
 {
     readonly IReadOnlyList<string> _differences;
 
     public DifferenceCollection(params string[] differences)
     {
-        _differences = differences ?? Array.Empty<string>();
+        _differences = differences?
+            .Where(difference => !string.IsNullOrEmpty(difference))
+            .Select(LogSafeText.Escape)
+            .ToArray() ?? Array.Empty<string>();
     }
 
     public string this[int index] => _differences[index];
