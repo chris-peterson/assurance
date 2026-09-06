@@ -59,7 +59,7 @@ public class AsyncExceptionTests : Scenarios<AsyncTestingContext>
     async Task implementations_are_run()
     {
         Context.Result = await Runner.RunInParallel(
-            "ExceptionTests",
+            "AsyncExceptionTests",
             Context.Existing,
             Context.Replacement);
     }
