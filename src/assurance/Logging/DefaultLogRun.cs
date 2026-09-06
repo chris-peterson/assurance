@@ -1,23 +1,31 @@
+using System.Threading;
 using Spiffy.Monitoring;
 
 namespace Assurance.Logging;
 
+/// <summary>
+/// The log a run records into when the caller has not supplied one of their own. Override
+/// <see cref="LogRunResult"/> to change what a run writes about the comparison.
+/// </summary>
 public class DefaultLogRun<T> : ILogRun<T>
 {
-    // fields written into a caller's own context are namespaced, so nothing of theirs is overwritten
-    internal const string CallerContextPrefix = "Assurance";
-
     readonly bool _isMyEventContext;
-    readonly string _loggingPrefix;
+    int _completed;
 
+    /// <param name="eventContext">
+    /// The caller's context to record into, or null to open one for this run alone and dispose it
+    /// on <see cref="Complete"/>. The fields this run writes into a caller's context are prefixed;
+    /// the per-implementation timings and exception details Spiffy writes are not, so a caller
+    /// already timing a step called "Existing" or "Replacement" shares those names.
+    /// </param>
+    /// <param name="taskName">Names the run in the log.</param>
     public DefaultLogRun(EventContext eventContext, string taskName)
     {
         _isMyEventContext = eventContext == null;
-        _loggingPrefix = _isMyEventContext ? null : CallerContextPrefix;
 
         if (_isMyEventContext)
         {
-            EventContext = new EventContext("Assurance", taskName);
+            EventContext = new EventContext(AssuranceLog.Component, taskName);
         }
         else
         {
@@ -27,8 +35,6 @@ public class DefaultLogRun<T> : ILogRun<T>
     }
 
     public EventContext EventContext { get; }
-
-    public bool WasCompleted { get; private set; }
 
     public void Log(string field, object value)
     {
@@ -53,26 +59,29 @@ public class DefaultLogRun<T> : ILogRun<T>
         }
     }
 
+    public void Warn(string message)
+    {
+        EventContext.SetToWarning(message);
+    }
+
+    public bool WasCompleted => Volatile.Read(ref _completed) == 1;
+
+    // a result's finalizer can reach this while the thread that owns the run is calling it, so the
+    // check and the set have to be one operation
     public void Complete()
     {
-        if (WasCompleted)
+        if (Interlocked.Exchange(ref _completed, 1) == 1)
         {
             return;
         }
-        WasCompleted = true;
         if (_isMyEventContext)
         {
             EventContext.Dispose();
         }
     }
 
-    public void Warn(string value)
-    {
-        EventContext.SetToWarning(value);
-    }
-
     string GetLoggingKey(string key)
     {
-        return $"{_loggingPrefix}{key}";
+        return _isMyEventContext ? key : $"{AssuranceLog.Component}{key}";
     }
 }
