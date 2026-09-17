@@ -8,11 +8,11 @@ public interface IComparisonStrategy<in T>
 public class ResultComparison
 {
     public bool AreEqual { get; }
-    public string Differences { get; }
+    public DifferenceCollection Differences { get; }
 
-    public ResultComparison(bool areEqual, string differences = "")
+    public ResultComparison(bool areEqual, params string[] differences)
     {
         AreEqual = areEqual;
-        Differences = differences;
+        Differences = new DifferenceCollection(differences);
     }
 }
